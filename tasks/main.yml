@@ -625,32 +625,32 @@
   package_facts:
     manager: auto
   tags:
-  - CCE-83584-3
+  - CCE-86354-8
   - CJIS-5.6.2.1.1
   - NIST-800-171-3.5.8
   - NIST-800-53-IA-5(1)(e)
   - NIST-800-53-IA-5(f)
   - PCI-DSS-Req-8.2.5
-  - accounts_password_pam_unix_remember
+  - accounts_password_pam_pwhistory_remember_password_auth
   - configure_strategy
   - low_complexity
   - medium_disruption
   - medium_severity
   - no_reboot_needed
   when:
-  - accounts_password_pam_unix_remember | bool
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
 
-- name: Limit Password Reuse - Check if /etc/pam.d/system-auth file is present
+- name: 'Limit Password Reuse: password-auth - Check if system relies on authselect tool'
   ansible.builtin.stat:
-    path: /etc/pam.d/system-auth
-  register: result_pam_file_present
+    path: /usr/bin/authselect
+  register: result_authselect_present
   when:
-  - accounts_password_pam_unix_remember | bool
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -658,275 +658,129 @@
   - no_reboot_needed | bool
   - '"pam" in ansible_facts.packages'
   tags:
-  - CCE-83584-3
+  - CCE-86354-8
   - CJIS-5.6.2.1.1
   - NIST-800-171-3.5.8
   - NIST-800-53-IA-5(1)(e)
   - NIST-800-53-IA-5(f)
   - PCI-DSS-Req-8.2.5
-  - accounts_password_pam_unix_remember
+  - accounts_password_pam_pwhistory_remember_password_auth
   - configure_strategy
   - low_complexity
   - medium_disruption
   - medium_severity
   - no_reboot_needed
 
-- name: Limit Password Reuse - Check the proper remediation for the system
-  block:
-  - name: Limit Password Reuse - Define the PAM file to be edited as a local fact
-    ansible.builtin.set_fact:
-      pam_file_path: /etc/pam.d/system-auth
-  - name: Limit Password Reuse - Check if system relies on authselect
-    ansible.builtin.stat:
-      path: /usr/bin/authselect
-    register: result_authselect_present
-  - name: Limit Password Reuse - Remediate using authselect
-    block:
-    - name: Limit Password Reuse - Check integrity of authselect current profile
-      ansible.builtin.command:
-        cmd: authselect check
-      register: result_authselect_check_cmd
-      changed_when: false
-      ignore_errors: true
-    - name: Limit Password Reuse - Informative message based on the authselect integrity check result
-      ansible.builtin.assert:
-        that:
-        - result_authselect_check_cmd is success
-        fail_msg:
-        - authselect integrity check failed. Remediation aborted!
-        - This remediation could not be applied because an authselect profile was not selected or the selected profile is
-          not intact.
-        - It is not recommended to manually edit the PAM files when authselect tool is available.
-        - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile is recommended.
-        success_msg:
-        - authselect integrity check passed
-    - name: Limit Password Reuse - Get authselect current profile
-      ansible.builtin.shell:
-        cmd: authselect current -r | awk '{ print $1 }'
-      register: result_authselect_profile
-      changed_when: false
-      when:
-      - result_authselect_check_cmd is success
-    - name: Limit Password Reuse - Define the current authselect profile as a local fact
-      ansible.builtin.set_fact:
-        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
-        authselect_custom_profile: '{{ result_authselect_profile.stdout }}'
-      when:
-      - result_authselect_profile is not skipped
-      - result_authselect_profile.stdout is match("custom/")
-    - name: Limit Password Reuse - Define the new authselect custom profile as a local fact
-      ansible.builtin.set_fact:
-        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
-        authselect_custom_profile: custom/hardening
-      when:
-      - result_authselect_profile is not skipped
-      - result_authselect_profile.stdout is not match("custom/")
-    - name: Limit Password Reuse - Get authselect current features to also enable them in the custom profile
-      ansible.builtin.shell:
-        cmd: authselect current | tail -n+3 | awk '{ print $2 }'
-      register: result_authselect_features
-      changed_when: false
-      when:
-      - result_authselect_profile is not skipped
-      - authselect_current_profile is not match("custom/")
-    - name: Limit Password Reuse - Check if any custom profile with the same name was already created
-      ansible.builtin.stat:
-        path: /etc/authselect/{{ authselect_custom_profile }}
-      register: result_authselect_custom_profile_present
-      changed_when: false
-      when:
-      - authselect_current_profile is not match("custom/")
-    - name: Limit Password Reuse - Create an authselect custom profile based on the current profile
-      ansible.builtin.command:
-        cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
-      when:
-      - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
-      - not result_authselect_custom_profile_present.stat.exists
-    - name: Limit Password Reuse - Ensure authselect changes are applied
-      ansible.builtin.command:
-        cmd: authselect apply-changes -b --backup=before-hardening-custom-profile
-      when:
-      - result_authselect_check_cmd is success
-      - result_authselect_profile is not skipped
-      - authselect_current_profile is not match("custom/")
-      - authselect_custom_profile is not match(authselect_current_profile)
-    - name: Limit Password Reuse - Ensure the authselect custom profile is selected
-      ansible.builtin.command:
-        cmd: authselect select {{ authselect_custom_profile }}
-      register: result_pam_authselect_select_profile
-      when:
-      - result_authselect_check_cmd is success
-      - result_authselect_profile is not skipped
-      - authselect_current_profile is not match("custom/")
-      - authselect_custom_profile is not match(authselect_current_profile)
-    - name: Limit Password Reuse - Restore the authselect features in the custom profile
-      ansible.builtin.command:
-        cmd: authselect enable-feature {{ item }}
-      loop: '{{ result_authselect_features.stdout_lines }}'
-      register: result_pam_authselect_restore_features
-      when:
-      - result_authselect_profile is not skipped
-      - result_authselect_features is not skipped
-      - result_pam_authselect_select_profile is not skipped
-    - name: Limit Password Reuse - Ensure authselect changes are applied
-      ansible.builtin.command:
-        cmd: authselect apply-changes -b --backup=after-hardening-custom-profile
-      when:
-      - result_authselect_check_cmd is success
-      - result_authselect_profile is not skipped
-      - result_pam_authselect_restore_features is not skipped
-    - name: Limit Password Reuse - Change the PAM file to be edited according to the custom authselect profile
-      ansible.builtin.set_fact:
-        pam_file_path: /etc/authselect/{{ authselect_custom_profile }}/{{ pam_file_path | basename }}
-    when:
-    - result_authselect_present.stat.exists
-  - name: Limit Password Reuse - Check if expected PAM module line is present in {{ pam_file_path }}
-    ansible.builtin.lineinfile:
-      path: '{{ pam_file_path }}'
-      regexp: ^\s*password\s+requisite\s+pam_pwhistory.so\s*.*
-      state: absent
-    check_mode: true
-    changed_when: false
-    register: result_pam_line_present
-  - name: Limit Password Reuse - Include or update the PAM module line in {{ pam_file_path }}
-    block:
-    - name: Limit Password Reuse - Check if required PAM module line is present in {{ pam_file_path }} with different control
-      ansible.builtin.lineinfile:
-        path: '{{ pam_file_path }}'
-        regexp: ^\s*password\s+.*\s+pam_pwhistory.so\s*
-        state: absent
-      check_mode: true
-      changed_when: false
-      register: result_pam_line_other_control_present
-    - name: Limit Password Reuse - Ensure the correct control for the required PAM module line in {{ pam_file_path }}
-      ansible.builtin.replace:
-        dest: '{{ pam_file_path }}'
-        regexp: ^(\s*password\s+).*(\bpam_pwhistory.so.*)
-        replace: \1requisite \2
-      register: result_pam_module_edit
-      when:
-      - result_pam_line_other_control_present.found == 1
-    - name: Limit Password Reuse - Ensure the required PAM module line is included in {{ pam_file_path }}
-      ansible.builtin.lineinfile:
-        dest: '{{ pam_file_path }}'
-        insertafter: ^password.*requisite.*pam_pwquality\.so
-        line: password    requisite    pam_pwhistory.so
-      register: result_pam_module_add
-      when:
-      - result_pam_line_other_control_present.found == 0 or result_pam_line_other_control_present.found > 1
-    - name: Limit Password Reuse - Ensure authselect changes are applied
-      ansible.builtin.command:
-        cmd: authselect apply-changes -b
-      when: 'result_authselect_present is defined and result_authselect_present.stat.exists and ((result_pam_module_add is
-        defined and result_pam_module_add.changed) or (result_pam_module_edit is defined and result_pam_module_edit.changed))
+- name: 'Limit Password Reuse: password-auth - Collect the available authselect features'
+  ansible.builtin.command:
+    cmd: authselect list-features minimal
+  register: result_authselect_available_features
+  changed_when: false
+  when:
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - result_authselect_present.stat.exists
+  tags:
+  - CCE-86354-8
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_password_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
 
-        '
-    when:
-    - result_pam_line_present.found is defined
-    - result_pam_line_present.found == 0
-  - name: Limit Password Reuse - Check if the required PAM module option is present in {{ pam_file_path }}
-    ansible.builtin.lineinfile:
-      path: '{{ pam_file_path }}'
-      regexp: ^\s*password\s+requisite\s+pam_pwhistory.so\s*.*\sremember\b
-      state: absent
-    check_mode: true
+- name: 'Limit Password Reuse: password-auth - Enable pam_pwhistory.so using authselect feature'
+  block:
+  - name: 'Limit Password Reuse: password-auth - Check integrity of authselect current profile'
+    ansible.builtin.command:
+      cmd: authselect check
+    register: result_authselect_check_cmd
     changed_when: false
-    register: result_pam_module_remember_option_present
-  - name: Limit Password Reuse - Ensure the "remember" PAM option for "pam_pwhistory.so" is included in {{ pam_file_path }}
-    ansible.builtin.lineinfile:
-      path: '{{ pam_file_path }}'
-      backrefs: true
-      regexp: ^(\s*password\s+requisite\s+pam_pwhistory.so.*)
-      line: \1 remember={{ var_password_pam_unix_remember }}
-      state: present
-    register: result_pam_remember_add
+    ignore_errors: true
+  - name: 'Limit Password Reuse: password-auth - Informative message based on the authselect integrity check result'
+    ansible.builtin.assert:
+      that:
+      - result_authselect_check_cmd is success
+      fail_msg:
+      - authselect integrity check failed. Remediation aborted!
+      - This remediation could not be applied because an authselect profile was not selected or the selected profile is not
+        intact.
+      - It is not recommended to manually edit the PAM files when authselect tool is available.
+      - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile is recommended.
+      success_msg:
+      - authselect integrity check passed
+  - name: 'Limit Password Reuse: password-auth - Get authselect current features'
+    ansible.builtin.shell:
+      cmd: authselect current | tail -n+3 | awk '{ print $2 }'
+    register: result_authselect_features
+    changed_when: false
     when:
-    - result_pam_module_remember_option_present.found == 0
-  - name: Limit Password Reuse - Ensure the required value for "remember" PAM option from "pam_pwhistory.so" in {{ pam_file_path
-      }}
-    ansible.builtin.lineinfile:
-      path: '{{ pam_file_path }}'
-      backrefs: true
-      regexp: ^(\s*password\s+requisite\s+pam_pwhistory.so\s+.*)(remember)=[0-9a-zA-Z]+\s*(.*)
-      line: \1\2={{ var_password_pam_unix_remember }} \3
-    register: result_pam_remember_edit
+    - result_authselect_check_cmd is success
+  - name: 'Limit Password Reuse: password-auth - Ensure "with-pwhistory" feature is enabled using authselect tool'
+    ansible.builtin.command:
+      cmd: authselect enable-feature with-pwhistory
+    register: result_authselect_enable_feature_cmd
     when:
-    - result_pam_module_remember_option_present.found > 0
-  - name: Limit Password Reuse - Ensure authselect changes are applied
+    - result_authselect_check_cmd is success
+    - result_authselect_features.stdout is not search("with-pwhistory")
+  - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
     ansible.builtin.command:
       cmd: authselect apply-changes -b
     when:
-    - result_authselect_present.stat.exists
-    - (result_pam_remember_add is defined and result_pam_remember_add.changed) or (result_pam_remember_edit is defined and
-      result_pam_remember_edit.changed)
+    - result_authselect_enable_feature_cmd is not skipped
+    - result_authselect_enable_feature_cmd is success
   when:
-  - accounts_password_pam_unix_remember | bool
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
   - '"pam" in ansible_facts.packages'
-  - result_pam_file_present.stat.exists
+  - result_authselect_present.stat.exists
+  - result_authselect_available_features.stdout is search("with-pwhistory")
   tags:
-  - CCE-83584-3
+  - CCE-86354-8
   - CJIS-5.6.2.1.1
   - NIST-800-171-3.5.8
   - NIST-800-53-IA-5(1)(e)
   - NIST-800-53-IA-5(f)
   - PCI-DSS-Req-8.2.5
-  - accounts_password_pam_unix_remember
+  - accounts_password_pam_pwhistory_remember_password_auth
   - configure_strategy
   - low_complexity
   - medium_disruption
   - medium_severity
   - no_reboot_needed
 
-- name: Limit Password Reuse - Check if /etc/pam.d/password-auth file is present
-  ansible.builtin.stat:
-    path: /etc/pam.d/password-auth
-  register: result_pam_file_present
-  when:
-  - accounts_password_pam_unix_remember | bool
-  - configure_strategy | bool
-  - low_complexity | bool
-  - medium_disruption | bool
-  - medium_severity | bool
-  - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
-  tags:
-  - CCE-83584-3
-  - CJIS-5.6.2.1.1
-  - NIST-800-171-3.5.8
-  - NIST-800-53-IA-5(1)(e)
-  - NIST-800-53-IA-5(f)
-  - PCI-DSS-Req-8.2.5
-  - accounts_password_pam_unix_remember
-  - configure_strategy
-  - low_complexity
-  - medium_disruption
-  - medium_severity
-  - no_reboot_needed
-
-- name: Limit Password Reuse - Check the proper remediation for the system
+- name: 'Limit Password Reuse: password-auth - Enable pam_pwhistory.so in appropriate PAM files'
   block:
-  - name: Limit Password Reuse - Define the PAM file to be edited as a local fact
+  - name: 'Limit Password Reuse: password-auth - Define the PAM file to be edited as a local fact'
     ansible.builtin.set_fact:
       pam_file_path: /etc/pam.d/password-auth
-  - name: Limit Password Reuse - Check if system relies on authselect
+  - name: 'Limit Password Reuse: password-auth - Check if system relies on authselect tool'
     ansible.builtin.stat:
       path: /usr/bin/authselect
     register: result_authselect_present
-  - name: Limit Password Reuse - Remediate using authselect
+  - name: 'Limit Password Reuse: password-auth - Ensure authselect custom profile is used if authselect is present'
     block:
-    - name: Limit Password Reuse - Check integrity of authselect current profile
+    - name: 'Limit Password Reuse: password-auth - Check integrity of authselect current profile'
       ansible.builtin.command:
         cmd: authselect check
       register: result_authselect_check_cmd
       changed_when: false
       ignore_errors: true
-    - name: Limit Password Reuse - Informative message based on the authselect integrity check result
+    - name: 'Limit Password Reuse: password-auth - Informative message based on the authselect integrity check result'
       ansible.builtin.assert:
         that:
         - result_authselect_check_cmd is success
@@ -938,28 +792,28 @@
         - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile is recommended.
         success_msg:
         - authselect integrity check passed
-    - name: Limit Password Reuse - Get authselect current profile
+    - name: 'Limit Password Reuse: password-auth - Get authselect current profile'
       ansible.builtin.shell:
         cmd: authselect current -r | awk '{ print $1 }'
       register: result_authselect_profile
       changed_when: false
       when:
       - result_authselect_check_cmd is success
-    - name: Limit Password Reuse - Define the current authselect profile as a local fact
+    - name: 'Limit Password Reuse: password-auth - Define the current authselect profile as a local fact'
       ansible.builtin.set_fact:
         authselect_current_profile: '{{ result_authselect_profile.stdout }}'
         authselect_custom_profile: '{{ result_authselect_profile.stdout }}'
       when:
       - result_authselect_profile is not skipped
       - result_authselect_profile.stdout is match("custom/")
-    - name: Limit Password Reuse - Define the new authselect custom profile as a local fact
+    - name: 'Limit Password Reuse: password-auth - Define the new authselect custom profile as a local fact'
       ansible.builtin.set_fact:
         authselect_current_profile: '{{ result_authselect_profile.stdout }}'
         authselect_custom_profile: custom/hardening
       when:
       - result_authselect_profile is not skipped
       - result_authselect_profile.stdout is not match("custom/")
-    - name: Limit Password Reuse - Get authselect current features to also enable them in the custom profile
+    - name: 'Limit Password Reuse: password-auth - Get authselect current features to also enable them in the custom profile'
       ansible.builtin.shell:
         cmd: authselect current | tail -n+3 | awk '{ print $2 }'
       register: result_authselect_features
@@ -967,21 +821,21 @@
       when:
       - result_authselect_profile is not skipped
       - authselect_current_profile is not match("custom/")
-    - name: Limit Password Reuse - Check if any custom profile with the same name was already created
+    - name: 'Limit Password Reuse: password-auth - Check if any custom profile with the same name was already created'
       ansible.builtin.stat:
         path: /etc/authselect/{{ authselect_custom_profile }}
       register: result_authselect_custom_profile_present
       changed_when: false
       when:
       - authselect_current_profile is not match("custom/")
-    - name: Limit Password Reuse - Create an authselect custom profile based on the current profile
+    - name: 'Limit Password Reuse: password-auth - Create an authselect custom profile based on the current profile'
       ansible.builtin.command:
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
       - authselect_current_profile is not match("custom/")
       - not result_authselect_custom_profile_present.stat.exists
-    - name: Limit Password Reuse - Ensure authselect changes are applied
+    - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
       ansible.builtin.command:
         cmd: authselect apply-changes -b --backup=before-hardening-custom-profile
       when:
@@ -989,7 +843,7 @@
       - result_authselect_profile is not skipped
       - authselect_current_profile is not match("custom/")
       - authselect_custom_profile is not match(authselect_current_profile)
-    - name: Limit Password Reuse - Ensure the authselect custom profile is selected
+    - name: 'Limit Password Reuse: password-auth - Ensure the authselect custom profile is selected'
       ansible.builtin.command:
         cmd: authselect select {{ authselect_custom_profile }}
       register: result_pam_authselect_select_profile
@@ -998,7 +852,7 @@
       - result_authselect_profile is not skipped
       - authselect_current_profile is not match("custom/")
       - authselect_custom_profile is not match(authselect_current_profile)
-    - name: Limit Password Reuse - Restore the authselect features in the custom profile
+    - name: 'Limit Password Reuse: password-auth - Restore the authselect features in the custom profile'
       ansible.builtin.command:
         cmd: authselect enable-feature {{ item }}
       loop: '{{ result_authselect_features.stdout_lines }}'
@@ -1007,29 +861,30 @@
       - result_authselect_profile is not skipped
       - result_authselect_features is not skipped
       - result_pam_authselect_select_profile is not skipped
-    - name: Limit Password Reuse - Ensure authselect changes are applied
+    - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
       ansible.builtin.command:
         cmd: authselect apply-changes -b --backup=after-hardening-custom-profile
       when:
       - result_authselect_check_cmd is success
       - result_authselect_profile is not skipped
       - result_pam_authselect_restore_features is not skipped
-    - name: Limit Password Reuse - Change the PAM file to be edited according to the custom authselect profile
+    - name: 'Limit Password Reuse: password-auth - Change the PAM file to be edited according to the custom authselect profile'
       ansible.builtin.set_fact:
         pam_file_path: /etc/authselect/{{ authselect_custom_profile }}/{{ pam_file_path | basename }}
     when:
     - result_authselect_present.stat.exists
-  - name: Limit Password Reuse - Check if expected PAM module line is present in {{ pam_file_path }}
+  - name: 'Limit Password Reuse: password-auth - Check if expected PAM module line is present in {{ pam_file_path }}'
     ansible.builtin.lineinfile:
       path: '{{ pam_file_path }}'
-      regexp: ^\s*password\s+requisite\s+pam_pwhistory.so\s*.*
+      regexp: ^\s*password\s+{{ var_password_pam_remember_control_flag.split(",")[0] }}\s+pam_pwhistory.so\s*.*
       state: absent
     check_mode: true
     changed_when: false
     register: result_pam_line_present
-  - name: Limit Password Reuse - Include or update the PAM module line in {{ pam_file_path }}
+  - name: 'Limit Password Reuse: password-auth - Include or update the PAM module line in {{ pam_file_path }}'
     block:
-    - name: Limit Password Reuse - Check if required PAM module line is present in {{ pam_file_path }} with different control
+    - name: 'Limit Password Reuse: password-auth - Check if required PAM module line is present in {{ pam_file_path }} with
+        different control'
       ansible.builtin.lineinfile:
         path: '{{ pam_file_path }}'
         regexp: ^\s*password\s+.*\s+pam_pwhistory.so\s*
@@ -1037,23 +892,24 @@
       check_mode: true
       changed_when: false
       register: result_pam_line_other_control_present
-    - name: Limit Password Reuse - Ensure the correct control for the required PAM module line in {{ pam_file_path }}
+    - name: 'Limit Password Reuse: password-auth - Ensure the correct control for the required PAM module line in {{ pam_file_path
+        }}'
       ansible.builtin.replace:
         dest: '{{ pam_file_path }}'
         regexp: ^(\s*password\s+).*(\bpam_pwhistory.so.*)
-        replace: \1requisite \2
+        replace: \1{{ var_password_pam_remember_control_flag.split(",")[0] }} \2
       register: result_pam_module_edit
       when:
       - result_pam_line_other_control_present.found == 1
-    - name: Limit Password Reuse - Ensure the required PAM module line is included in {{ pam_file_path }}
+    - name: 'Limit Password Reuse: password-auth - Ensure the required PAM module line is included in {{ pam_file_path }}'
       ansible.builtin.lineinfile:
         dest: '{{ pam_file_path }}'
         insertafter: ^password.*requisite.*pam_pwquality\.so
-        line: password    requisite    pam_pwhistory.so
+        line: password    {{ var_password_pam_remember_control_flag.split(",")[0] }}    pam_pwhistory.so
       register: result_pam_module_add
       when:
       - result_pam_line_other_control_present.found == 0 or result_pam_line_other_control_present.found > 1
-    - name: Limit Password Reuse - Ensure authselect changes are applied
+    - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
       ansible.builtin.command:
         cmd: authselect apply-changes -b
       when: 'result_authselect_present is defined and result_authselect_present.stat.exists and ((result_pam_module_add is
@@ -1063,7 +919,379 @@
     when:
     - result_pam_line_present.found is defined
     - result_pam_line_present.found == 0
-  - name: Limit Password Reuse - Check if the required PAM module option is present in {{ pam_file_path }}
+  when:
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - '(result_authselect_available_features.stdout is defined and result_authselect_available_features.stdout is not search("with-pwhistory"))
+    or result_authselect_available_features is not defined
+
+    '
+  tags:
+  - CCE-86354-8
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_password_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: password-auth - Check the presence of /etc/security/pwhistory.conf file'
+  ansible.builtin.stat:
+    path: /etc/security/pwhistory.conf
+  register: result_pwhistory_conf_check
+  when:
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-86354-8
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_password_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: password-auth - pam_pwhistory.so parameters are configured in /etc/security/pwhistory.conf
+    file'
+  block:
+  - name: 'Limit Password Reuse: password-auth - Ensure the pam_pwhistory.so remember parameter in /etc/security/pwhistory.conf'
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwhistory.conf
+      regexp: ^\s*remember\s*=
+      line: remember = {{ var_password_pam_remember }}
+      state: present
+  - name: 'Limit Password Reuse: password-auth - Ensure the pam_pwhistory.so remember parameter is removed from PAM files'
+    block:
+    - name: 'Limit Password Reuse: password-auth - Check if /etc/pam.d/password-auth file is present'
+      ansible.builtin.stat:
+        path: /etc/pam.d/password-auth
+      register: result_pam_file_present
+    - name: 'Limit Password Reuse: password-auth - Check the proper remediation for the system'
+      block:
+      - name: 'Limit Password Reuse: password-auth - Define the PAM file to be edited as a local fact'
+        ansible.builtin.set_fact:
+          pam_file_path: /etc/pam.d/password-auth
+      - name: 'Limit Password Reuse: password-auth - Check if system relies on authselect tool'
+        ansible.builtin.stat:
+          path: /usr/bin/authselect
+        register: result_authselect_present
+      - name: 'Limit Password Reuse: password-auth - Ensure authselect custom profile is used if authselect is present'
+        block:
+        - name: 'Limit Password Reuse: password-auth - Check integrity of authselect current profile'
+          ansible.builtin.command:
+            cmd: authselect check
+          register: result_authselect_check_cmd
+          changed_when: false
+          ignore_errors: true
+        - name: 'Limit Password Reuse: password-auth - Informative message based on the authselect integrity check result'
+          ansible.builtin.assert:
+            that:
+            - result_authselect_check_cmd is success
+            fail_msg:
+            - authselect integrity check failed. Remediation aborted!
+            - This remediation could not be applied because an authselect profile was not selected or the selected profile
+              is not intact.
+            - It is not recommended to manually edit the PAM files when authselect tool is available.
+            - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile
+              is recommended.
+            success_msg:
+            - authselect integrity check passed
+        - name: 'Limit Password Reuse: password-auth - Get authselect current profile'
+          ansible.builtin.shell:
+            cmd: authselect current -r | awk '{ print $1 }'
+          register: result_authselect_profile
+          changed_when: false
+          when:
+          - result_authselect_check_cmd is success
+        - name: 'Limit Password Reuse: password-auth - Define the current authselect profile as a local fact'
+          ansible.builtin.set_fact:
+            authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+            authselect_custom_profile: '{{ result_authselect_profile.stdout }}'
+          when:
+          - result_authselect_profile is not skipped
+          - result_authselect_profile.stdout is match("custom/")
+        - name: 'Limit Password Reuse: password-auth - Define the new authselect custom profile as a local fact'
+          ansible.builtin.set_fact:
+            authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+            authselect_custom_profile: custom/hardening
+          when:
+          - result_authselect_profile is not skipped
+          - result_authselect_profile.stdout is not match("custom/")
+        - name: 'Limit Password Reuse: password-auth - Get authselect current features to also enable them in the custom profile'
+          ansible.builtin.shell:
+            cmd: authselect current | tail -n+3 | awk '{ print $2 }'
+          register: result_authselect_features
+          changed_when: false
+          when:
+          - result_authselect_profile is not skipped
+          - authselect_current_profile is not match("custom/")
+        - name: 'Limit Password Reuse: password-auth - Check if any custom profile with the same name was already created'
+          ansible.builtin.stat:
+            path: /etc/authselect/{{ authselect_custom_profile }}
+          register: result_authselect_custom_profile_present
+          changed_when: false
+          when:
+          - authselect_current_profile is not match("custom/")
+        - name: 'Limit Password Reuse: password-auth - Create an authselect custom profile based on the current profile'
+          ansible.builtin.command:
+            cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
+          when:
+          - result_authselect_check_cmd is success
+          - authselect_current_profile is not match("custom/")
+          - not result_authselect_custom_profile_present.stat.exists
+        - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
+          ansible.builtin.command:
+            cmd: authselect apply-changes -b --backup=before-hardening-custom-profile
+          when:
+          - result_authselect_check_cmd is success
+          - result_authselect_profile is not skipped
+          - authselect_current_profile is not match("custom/")
+          - authselect_custom_profile is not match(authselect_current_profile)
+        - name: 'Limit Password Reuse: password-auth - Ensure the authselect custom profile is selected'
+          ansible.builtin.command:
+            cmd: authselect select {{ authselect_custom_profile }}
+          register: result_pam_authselect_select_profile
+          when:
+          - result_authselect_check_cmd is success
+          - result_authselect_profile is not skipped
+          - authselect_current_profile is not match("custom/")
+          - authselect_custom_profile is not match(authselect_current_profile)
+        - name: 'Limit Password Reuse: password-auth - Restore the authselect features in the custom profile'
+          ansible.builtin.command:
+            cmd: authselect enable-feature {{ item }}
+          loop: '{{ result_authselect_features.stdout_lines }}'
+          register: result_pam_authselect_restore_features
+          when:
+          - result_authselect_profile is not skipped
+          - result_authselect_features is not skipped
+          - result_pam_authselect_select_profile is not skipped
+        - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
+          ansible.builtin.command:
+            cmd: authselect apply-changes -b --backup=after-hardening-custom-profile
+          when:
+          - result_authselect_check_cmd is success
+          - result_authselect_profile is not skipped
+          - result_pam_authselect_restore_features is not skipped
+        - name: 'Limit Password Reuse: password-auth - Change the PAM file to be edited according to the custom authselect
+            profile'
+          ansible.builtin.set_fact:
+            pam_file_path: /etc/authselect/{{ authselect_custom_profile }}/{{ pam_file_path | basename }}
+        when:
+        - result_authselect_present.stat.exists
+      - name: 'Limit Password Reuse: password-auth - Ensure the "remember" option from "pam_pwhistory.so" is not present in
+          {{ pam_file_path }}'
+        ansible.builtin.replace:
+          dest: '{{ pam_file_path }}'
+          regexp: (.*password.*pam_pwhistory.so.*)\bremember\b=?[0-9a-zA-Z]*(.*)
+          replace: \1\2
+        register: result_pam_option_removal
+      - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
+        ansible.builtin.command:
+          cmd: authselect apply-changes -b
+        when:
+        - result_authselect_present.stat.exists
+        - result_pam_option_removal is changed
+      when:
+      - result_pam_file_present.stat.exists
+  when:
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - result_pwhistory_conf_check.stat.exists
+  tags:
+  - CCE-86354-8
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_password_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: password-auth - pam_pwhistory.so parameters are configured in PAM files'
+  block:
+  - name: 'Limit Password Reuse: password-auth - Define the PAM file to be edited as a local fact'
+    ansible.builtin.set_fact:
+      pam_file_path: /etc/pam.d/password-auth
+  - name: 'Limit Password Reuse: password-auth - Check if system relies on authselect tool'
+    ansible.builtin.stat:
+      path: /usr/bin/authselect
+    register: result_authselect_present
+  - name: 'Limit Password Reuse: password-auth - Ensure authselect custom profile is used if authselect is present'
+    block:
+    - name: 'Limit Password Reuse: password-auth - Check integrity of authselect current profile'
+      ansible.builtin.command:
+        cmd: authselect check
+      register: result_authselect_check_cmd
+      changed_when: false
+      ignore_errors: true
+    - name: 'Limit Password Reuse: password-auth - Informative message based on the authselect integrity check result'
+      ansible.builtin.assert:
+        that:
+        - result_authselect_check_cmd is success
+        fail_msg:
+        - authselect integrity check failed. Remediation aborted!
+        - This remediation could not be applied because an authselect profile was not selected or the selected profile is
+          not intact.
+        - It is not recommended to manually edit the PAM files when authselect tool is available.
+        - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile is recommended.
+        success_msg:
+        - authselect integrity check passed
+    - name: 'Limit Password Reuse: password-auth - Get authselect current profile'
+      ansible.builtin.shell:
+        cmd: authselect current -r | awk '{ print $1 }'
+      register: result_authselect_profile
+      changed_when: false
+      when:
+      - result_authselect_check_cmd is success
+    - name: 'Limit Password Reuse: password-auth - Define the current authselect profile as a local fact'
+      ansible.builtin.set_fact:
+        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+        authselect_custom_profile: '{{ result_authselect_profile.stdout }}'
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_profile.stdout is match("custom/")
+    - name: 'Limit Password Reuse: password-auth - Define the new authselect custom profile as a local fact'
+      ansible.builtin.set_fact:
+        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+        authselect_custom_profile: custom/hardening
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_profile.stdout is not match("custom/")
+    - name: 'Limit Password Reuse: password-auth - Get authselect current features to also enable them in the custom profile'
+      ansible.builtin.shell:
+        cmd: authselect current | tail -n+3 | awk '{ print $2 }'
+      register: result_authselect_features
+      changed_when: false
+      when:
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+    - name: 'Limit Password Reuse: password-auth - Check if any custom profile with the same name was already created'
+      ansible.builtin.stat:
+        path: /etc/authselect/{{ authselect_custom_profile }}
+      register: result_authselect_custom_profile_present
+      changed_when: false
+      when:
+      - authselect_current_profile is not match("custom/")
+    - name: 'Limit Password Reuse: password-auth - Create an authselect custom profile based on the current profile'
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is not match("custom/")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b --backup=before-hardening-custom-profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+      - authselect_custom_profile is not match(authselect_current_profile)
+    - name: 'Limit Password Reuse: password-auth - Ensure the authselect custom profile is selected'
+      ansible.builtin.command:
+        cmd: authselect select {{ authselect_custom_profile }}
+      register: result_pam_authselect_select_profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+      - authselect_custom_profile is not match(authselect_current_profile)
+    - name: 'Limit Password Reuse: password-auth - Restore the authselect features in the custom profile'
+      ansible.builtin.command:
+        cmd: authselect enable-feature {{ item }}
+      loop: '{{ result_authselect_features.stdout_lines }}'
+      register: result_pam_authselect_restore_features
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_features is not skipped
+      - result_pam_authselect_select_profile is not skipped
+    - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b --backup=after-hardening-custom-profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - result_pam_authselect_restore_features is not skipped
+    - name: 'Limit Password Reuse: password-auth - Change the PAM file to be edited according to the custom authselect profile'
+      ansible.builtin.set_fact:
+        pam_file_path: /etc/authselect/{{ authselect_custom_profile }}/{{ pam_file_path | basename }}
+    when:
+    - result_authselect_present.stat.exists
+  - name: 'Limit Password Reuse: password-auth - Check if expected PAM module line is present in {{ pam_file_path }}'
+    ansible.builtin.lineinfile:
+      path: '{{ pam_file_path }}'
+      regexp: ^\s*password\s+requisite\s+pam_pwhistory.so\s*.*
+      state: absent
+    check_mode: true
+    changed_when: false
+    register: result_pam_line_present
+  - name: 'Limit Password Reuse: password-auth - Include or update the PAM module line in {{ pam_file_path }}'
+    block:
+    - name: 'Limit Password Reuse: password-auth - Check if required PAM module line is present in {{ pam_file_path }} with
+        different control'
+      ansible.builtin.lineinfile:
+        path: '{{ pam_file_path }}'
+        regexp: ^\s*password\s+.*\s+pam_pwhistory.so\s*
+        state: absent
+      check_mode: true
+      changed_when: false
+      register: result_pam_line_other_control_present
+    - name: 'Limit Password Reuse: password-auth - Ensure the correct control for the required PAM module line in {{ pam_file_path
+        }}'
+      ansible.builtin.replace:
+        dest: '{{ pam_file_path }}'
+        regexp: ^(\s*password\s+).*(\bpam_pwhistory.so.*)
+        replace: \1requisite \2
+      register: result_pam_module_edit
+      when:
+      - result_pam_line_other_control_present.found == 1
+    - name: 'Limit Password Reuse: password-auth - Ensure the required PAM module line is included in {{ pam_file_path }}'
+      ansible.builtin.lineinfile:
+        dest: '{{ pam_file_path }}'
+        line: password    requisite    pam_pwhistory.so
+      register: result_pam_module_add
+      when:
+      - result_pam_line_other_control_present.found == 0 or result_pam_line_other_control_present.found > 1
+    - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b
+      when: 'result_authselect_present is defined and result_authselect_present.stat.exists and ((result_pam_module_add is
+        defined and result_pam_module_add.changed) or (result_pam_module_edit is defined and result_pam_module_edit.changed))
+
+        '
+    when:
+    - result_pam_line_present.found is defined
+    - result_pam_line_present.found == 0
+  - name: 'Limit Password Reuse: password-auth - Check if the required PAM module option is present in {{ pam_file_path }}'
     ansible.builtin.lineinfile:
       path: '{{ pam_file_path }}'
       regexp: ^\s*password\s+requisite\s+pam_pwhistory.so\s*.*\sremember\b
@@ -1071,27 +1299,28 @@
     check_mode: true
     changed_when: false
     register: result_pam_module_remember_option_present
-  - name: Limit Password Reuse - Ensure the "remember" PAM option for "pam_pwhistory.so" is included in {{ pam_file_path }}
+  - name: 'Limit Password Reuse: password-auth - Ensure the "remember" PAM option for "pam_pwhistory.so" is included in {{
+      pam_file_path }}'
     ansible.builtin.lineinfile:
       path: '{{ pam_file_path }}'
       backrefs: true
       regexp: ^(\s*password\s+requisite\s+pam_pwhistory.so.*)
-      line: \1 remember={{ var_password_pam_unix_remember }}
+      line: \1 remember={{ var_password_pam_remember }}
       state: present
     register: result_pam_remember_add
     when:
     - result_pam_module_remember_option_present.found == 0
-  - name: Limit Password Reuse - Ensure the required value for "remember" PAM option from "pam_pwhistory.so" in {{ pam_file_path
-      }}
+  - name: 'Limit Password Reuse: password-auth - Ensure the required value for "remember" PAM option from "pam_pwhistory.so"
+      in {{ pam_file_path }}'
     ansible.builtin.lineinfile:
       path: '{{ pam_file_path }}'
       backrefs: true
       regexp: ^(\s*password\s+requisite\s+pam_pwhistory.so\s+.*)(remember)=[0-9a-zA-Z]+\s*(.*)
-      line: \1\2={{ var_password_pam_unix_remember }} \3
+      line: \1\2={{ var_password_pam_remember }} \3
     register: result_pam_remember_edit
     when:
     - result_pam_module_remember_option_present.found > 0
-  - name: Limit Password Reuse - Ensure authselect changes are applied
+  - name: 'Limit Password Reuse: password-auth - Ensure authselect changes are applied'
     ansible.builtin.command:
       cmd: authselect apply-changes -b
     when:
@@ -1099,22 +1328,749 @@
     - (result_pam_remember_add is defined and result_pam_remember_add.changed) or (result_pam_remember_edit is defined and
       result_pam_remember_edit.changed)
   when:
-  - accounts_password_pam_unix_remember | bool
+  - accounts_password_pam_pwhistory_remember_password_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
   - '"pam" in ansible_facts.packages'
-  - result_pam_file_present.stat.exists
+  - not result_pwhistory_conf_check.stat.exists
   tags:
-  - CCE-83584-3
+  - CCE-86354-8
   - CJIS-5.6.2.1.1
   - NIST-800-171-3.5.8
   - NIST-800-53-IA-5(1)(e)
   - NIST-800-53-IA-5(f)
   - PCI-DSS-Req-8.2.5
-  - accounts_password_pam_unix_remember
+  - accounts_password_pam_pwhistory_remember_password_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: Gather the package facts
+  package_facts:
+    manager: auto
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+
+- name: 'Limit Password Reuse: system-auth - Check if system relies on authselect tool'
+  ansible.builtin.stat:
+    path: /usr/bin/authselect
+  register: result_authselect_present
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: system-auth - Collect the available authselect features'
+  ansible.builtin.command:
+    cmd: authselect list-features minimal
+  register: result_authselect_available_features
+  changed_when: false
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - result_authselect_present.stat.exists
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: system-auth - Enable pam_pwhistory.so using authselect feature'
+  block:
+  - name: 'Limit Password Reuse: system-auth - Check integrity of authselect current profile'
+    ansible.builtin.command:
+      cmd: authselect check
+    register: result_authselect_check_cmd
+    changed_when: false
+    ignore_errors: true
+  - name: 'Limit Password Reuse: system-auth - Informative message based on the authselect integrity check result'
+    ansible.builtin.assert:
+      that:
+      - result_authselect_check_cmd is success
+      fail_msg:
+      - authselect integrity check failed. Remediation aborted!
+      - This remediation could not be applied because an authselect profile was not selected or the selected profile is not
+        intact.
+      - It is not recommended to manually edit the PAM files when authselect tool is available.
+      - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile is recommended.
+      success_msg:
+      - authselect integrity check passed
+  - name: 'Limit Password Reuse: system-auth - Get authselect current features'
+    ansible.builtin.shell:
+      cmd: authselect current | tail -n+3 | awk '{ print $2 }'
+    register: result_authselect_features
+    changed_when: false
+    when:
+    - result_authselect_check_cmd is success
+  - name: 'Limit Password Reuse: system-auth - Ensure "with-pwhistory" feature is enabled using authselect tool'
+    ansible.builtin.command:
+      cmd: authselect enable-feature with-pwhistory
+    register: result_authselect_enable_feature_cmd
+    when:
+    - result_authselect_check_cmd is success
+    - result_authselect_features.stdout is not search("with-pwhistory")
+  - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+    ansible.builtin.command:
+      cmd: authselect apply-changes -b
+    when:
+    - result_authselect_enable_feature_cmd is not skipped
+    - result_authselect_enable_feature_cmd is success
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - result_authselect_present.stat.exists
+  - result_authselect_available_features.stdout is search("with-pwhistory")
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: system-auth - Enable pam_pwhistory.so in appropriate PAM files'
+  block:
+  - name: 'Limit Password Reuse: system-auth - Define the PAM file to be edited as a local fact'
+    ansible.builtin.set_fact:
+      pam_file_path: /etc/pam.d/system-auth
+  - name: 'Limit Password Reuse: system-auth - Check if system relies on authselect tool'
+    ansible.builtin.stat:
+      path: /usr/bin/authselect
+    register: result_authselect_present
+  - name: 'Limit Password Reuse: system-auth - Ensure authselect custom profile is used if authselect is present'
+    block:
+    - name: 'Limit Password Reuse: system-auth - Check integrity of authselect current profile'
+      ansible.builtin.command:
+        cmd: authselect check
+      register: result_authselect_check_cmd
+      changed_when: false
+      ignore_errors: true
+    - name: 'Limit Password Reuse: system-auth - Informative message based on the authselect integrity check result'
+      ansible.builtin.assert:
+        that:
+        - result_authselect_check_cmd is success
+        fail_msg:
+        - authselect integrity check failed. Remediation aborted!
+        - This remediation could not be applied because an authselect profile was not selected or the selected profile is
+          not intact.
+        - It is not recommended to manually edit the PAM files when authselect tool is available.
+        - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile is recommended.
+        success_msg:
+        - authselect integrity check passed
+    - name: 'Limit Password Reuse: system-auth - Get authselect current profile'
+      ansible.builtin.shell:
+        cmd: authselect current -r | awk '{ print $1 }'
+      register: result_authselect_profile
+      changed_when: false
+      when:
+      - result_authselect_check_cmd is success
+    - name: 'Limit Password Reuse: system-auth - Define the current authselect profile as a local fact'
+      ansible.builtin.set_fact:
+        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+        authselect_custom_profile: '{{ result_authselect_profile.stdout }}'
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_profile.stdout is match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Define the new authselect custom profile as a local fact'
+      ansible.builtin.set_fact:
+        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+        authselect_custom_profile: custom/hardening
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_profile.stdout is not match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Get authselect current features to also enable them in the custom profile'
+      ansible.builtin.shell:
+        cmd: authselect current | tail -n+3 | awk '{ print $2 }'
+      register: result_authselect_features
+      changed_when: false
+      when:
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Check if any custom profile with the same name was already created'
+      ansible.builtin.stat:
+        path: /etc/authselect/{{ authselect_custom_profile }}
+      register: result_authselect_custom_profile_present
+      changed_when: false
+      when:
+      - authselect_current_profile is not match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Create an authselect custom profile based on the current profile'
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is not match("custom/")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b --backup=before-hardening-custom-profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+      - authselect_custom_profile is not match(authselect_current_profile)
+    - name: 'Limit Password Reuse: system-auth - Ensure the authselect custom profile is selected'
+      ansible.builtin.command:
+        cmd: authselect select {{ authselect_custom_profile }}
+      register: result_pam_authselect_select_profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+      - authselect_custom_profile is not match(authselect_current_profile)
+    - name: 'Limit Password Reuse: system-auth - Restore the authselect features in the custom profile'
+      ansible.builtin.command:
+        cmd: authselect enable-feature {{ item }}
+      loop: '{{ result_authselect_features.stdout_lines }}'
+      register: result_pam_authselect_restore_features
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_features is not skipped
+      - result_pam_authselect_select_profile is not skipped
+    - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b --backup=after-hardening-custom-profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - result_pam_authselect_restore_features is not skipped
+    - name: 'Limit Password Reuse: system-auth - Change the PAM file to be edited according to the custom authselect profile'
+      ansible.builtin.set_fact:
+        pam_file_path: /etc/authselect/{{ authselect_custom_profile }}/{{ pam_file_path | basename }}
+    when:
+    - result_authselect_present.stat.exists
+  - name: 'Limit Password Reuse: system-auth - Check if expected PAM module line is present in {{ pam_file_path }}'
+    ansible.builtin.lineinfile:
+      path: '{{ pam_file_path }}'
+      regexp: ^\s*password\s+{{ var_password_pam_remember_control_flag.split(",")[0] }}\s+pam_pwhistory.so\s*.*
+      state: absent
+    check_mode: true
+    changed_when: false
+    register: result_pam_line_present
+  - name: 'Limit Password Reuse: system-auth - Include or update the PAM module line in {{ pam_file_path }}'
+    block:
+    - name: 'Limit Password Reuse: system-auth - Check if required PAM module line is present in {{ pam_file_path }} with
+        different control'
+      ansible.builtin.lineinfile:
+        path: '{{ pam_file_path }}'
+        regexp: ^\s*password\s+.*\s+pam_pwhistory.so\s*
+        state: absent
+      check_mode: true
+      changed_when: false
+      register: result_pam_line_other_control_present
+    - name: 'Limit Password Reuse: system-auth - Ensure the correct control for the required PAM module line in {{ pam_file_path
+        }}'
+      ansible.builtin.replace:
+        dest: '{{ pam_file_path }}'
+        regexp: ^(\s*password\s+).*(\bpam_pwhistory.so.*)
+        replace: \1{{ var_password_pam_remember_control_flag.split(",")[0] }} \2
+      register: result_pam_module_edit
+      when:
+      - result_pam_line_other_control_present.found == 1
+    - name: 'Limit Password Reuse: system-auth - Ensure the required PAM module line is included in {{ pam_file_path }}'
+      ansible.builtin.lineinfile:
+        dest: '{{ pam_file_path }}'
+        insertafter: ^password.*requisite.*pam_pwquality\.so
+        line: password    {{ var_password_pam_remember_control_flag.split(",")[0] }}    pam_pwhistory.so
+      register: result_pam_module_add
+      when:
+      - result_pam_line_other_control_present.found == 0 or result_pam_line_other_control_present.found > 1
+    - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b
+      when: 'result_authselect_present is defined and result_authselect_present.stat.exists and ((result_pam_module_add is
+        defined and result_pam_module_add.changed) or (result_pam_module_edit is defined and result_pam_module_edit.changed))
+
+        '
+    when:
+    - result_pam_line_present.found is defined
+    - result_pam_line_present.found == 0
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - '(result_authselect_available_features.stdout is defined and result_authselect_available_features.stdout is not search("with-pwhistory"))
+    or result_authselect_available_features is not defined
+
+    '
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: system-auth - Check the presence of /etc/security/pwhistory.conf file'
+  ansible.builtin.stat:
+    path: /etc/security/pwhistory.conf
+  register: result_pwhistory_conf_check
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: system-auth - pam_pwhistory.so parameters are configured in /etc/security/pwhistory.conf file'
+  block:
+  - name: 'Limit Password Reuse: system-auth - Ensure the pam_pwhistory.so remember parameter in /etc/security/pwhistory.conf'
+    ansible.builtin.lineinfile:
+      path: /etc/security/pwhistory.conf
+      regexp: ^\s*remember\s*=
+      line: remember = {{ var_password_pam_remember }}
+      state: present
+  - name: 'Limit Password Reuse: system-auth - Ensure the pam_pwhistory.so remember parameter is removed from PAM files'
+    block:
+    - name: 'Limit Password Reuse: system-auth - Check if /etc/pam.d/system-auth file is present'
+      ansible.builtin.stat:
+        path: /etc/pam.d/system-auth
+      register: result_pam_file_present
+    - name: 'Limit Password Reuse: system-auth - Check the proper remediation for the system'
+      block:
+      - name: 'Limit Password Reuse: system-auth - Define the PAM file to be edited as a local fact'
+        ansible.builtin.set_fact:
+          pam_file_path: /etc/pam.d/system-auth
+      - name: 'Limit Password Reuse: system-auth - Check if system relies on authselect tool'
+        ansible.builtin.stat:
+          path: /usr/bin/authselect
+        register: result_authselect_present
+      - name: 'Limit Password Reuse: system-auth - Ensure authselect custom profile is used if authselect is present'
+        block:
+        - name: 'Limit Password Reuse: system-auth - Check integrity of authselect current profile'
+          ansible.builtin.command:
+            cmd: authselect check
+          register: result_authselect_check_cmd
+          changed_when: false
+          ignore_errors: true
+        - name: 'Limit Password Reuse: system-auth - Informative message based on the authselect integrity check result'
+          ansible.builtin.assert:
+            that:
+            - result_authselect_check_cmd is success
+            fail_msg:
+            - authselect integrity check failed. Remediation aborted!
+            - This remediation could not be applied because an authselect profile was not selected or the selected profile
+              is not intact.
+            - It is not recommended to manually edit the PAM files when authselect tool is available.
+            - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile
+              is recommended.
+            success_msg:
+            - authselect integrity check passed
+        - name: 'Limit Password Reuse: system-auth - Get authselect current profile'
+          ansible.builtin.shell:
+            cmd: authselect current -r | awk '{ print $1 }'
+          register: result_authselect_profile
+          changed_when: false
+          when:
+          - result_authselect_check_cmd is success
+        - name: 'Limit Password Reuse: system-auth - Define the current authselect profile as a local fact'
+          ansible.builtin.set_fact:
+            authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+            authselect_custom_profile: '{{ result_authselect_profile.stdout }}'
+          when:
+          - result_authselect_profile is not skipped
+          - result_authselect_profile.stdout is match("custom/")
+        - name: 'Limit Password Reuse: system-auth - Define the new authselect custom profile as a local fact'
+          ansible.builtin.set_fact:
+            authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+            authselect_custom_profile: custom/hardening
+          when:
+          - result_authselect_profile is not skipped
+          - result_authselect_profile.stdout is not match("custom/")
+        - name: 'Limit Password Reuse: system-auth - Get authselect current features to also enable them in the custom profile'
+          ansible.builtin.shell:
+            cmd: authselect current | tail -n+3 | awk '{ print $2 }'
+          register: result_authselect_features
+          changed_when: false
+          when:
+          - result_authselect_profile is not skipped
+          - authselect_current_profile is not match("custom/")
+        - name: 'Limit Password Reuse: system-auth - Check if any custom profile with the same name was already created'
+          ansible.builtin.stat:
+            path: /etc/authselect/{{ authselect_custom_profile }}
+          register: result_authselect_custom_profile_present
+          changed_when: false
+          when:
+          - authselect_current_profile is not match("custom/")
+        - name: 'Limit Password Reuse: system-auth - Create an authselect custom profile based on the current profile'
+          ansible.builtin.command:
+            cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
+          when:
+          - result_authselect_check_cmd is success
+          - authselect_current_profile is not match("custom/")
+          - not result_authselect_custom_profile_present.stat.exists
+        - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+          ansible.builtin.command:
+            cmd: authselect apply-changes -b --backup=before-hardening-custom-profile
+          when:
+          - result_authselect_check_cmd is success
+          - result_authselect_profile is not skipped
+          - authselect_current_profile is not match("custom/")
+          - authselect_custom_profile is not match(authselect_current_profile)
+        - name: 'Limit Password Reuse: system-auth - Ensure the authselect custom profile is selected'
+          ansible.builtin.command:
+            cmd: authselect select {{ authselect_custom_profile }}
+          register: result_pam_authselect_select_profile
+          when:
+          - result_authselect_check_cmd is success
+          - result_authselect_profile is not skipped
+          - authselect_current_profile is not match("custom/")
+          - authselect_custom_profile is not match(authselect_current_profile)
+        - name: 'Limit Password Reuse: system-auth - Restore the authselect features in the custom profile'
+          ansible.builtin.command:
+            cmd: authselect enable-feature {{ item }}
+          loop: '{{ result_authselect_features.stdout_lines }}'
+          register: result_pam_authselect_restore_features
+          when:
+          - result_authselect_profile is not skipped
+          - result_authselect_features is not skipped
+          - result_pam_authselect_select_profile is not skipped
+        - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+          ansible.builtin.command:
+            cmd: authselect apply-changes -b --backup=after-hardening-custom-profile
+          when:
+          - result_authselect_check_cmd is success
+          - result_authselect_profile is not skipped
+          - result_pam_authselect_restore_features is not skipped
+        - name: 'Limit Password Reuse: system-auth - Change the PAM file to be edited according to the custom authselect profile'
+          ansible.builtin.set_fact:
+            pam_file_path: /etc/authselect/{{ authselect_custom_profile }}/{{ pam_file_path | basename }}
+        when:
+        - result_authselect_present.stat.exists
+      - name: 'Limit Password Reuse: system-auth - Ensure the "remember" option from "pam_pwhistory.so" is not present in
+          {{ pam_file_path }}'
+        ansible.builtin.replace:
+          dest: '{{ pam_file_path }}'
+          regexp: (.*password.*pam_pwhistory.so.*)\bremember\b=?[0-9a-zA-Z]*(.*)
+          replace: \1\2
+        register: result_pam_option_removal
+      - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+        ansible.builtin.command:
+          cmd: authselect apply-changes -b
+        when:
+        - result_authselect_present.stat.exists
+        - result_pam_option_removal is changed
+      when:
+      - result_pam_file_present.stat.exists
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - result_pwhistory_conf_check.stat.exists
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
+  - configure_strategy
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+
+- name: 'Limit Password Reuse: system-auth - pam_pwhistory.so parameters are configured in PAM files'
+  block:
+  - name: 'Limit Password Reuse: system-auth - Define the PAM file to be edited as a local fact'
+    ansible.builtin.set_fact:
+      pam_file_path: /etc/pam.d/system-auth
+  - name: 'Limit Password Reuse: system-auth - Check if system relies on authselect tool'
+    ansible.builtin.stat:
+      path: /usr/bin/authselect
+    register: result_authselect_present
+  - name: 'Limit Password Reuse: system-auth - Ensure authselect custom profile is used if authselect is present'
+    block:
+    - name: 'Limit Password Reuse: system-auth - Check integrity of authselect current profile'
+      ansible.builtin.command:
+        cmd: authselect check
+      register: result_authselect_check_cmd
+      changed_when: false
+      ignore_errors: true
+    - name: 'Limit Password Reuse: system-auth - Informative message based on the authselect integrity check result'
+      ansible.builtin.assert:
+        that:
+        - result_authselect_check_cmd is success
+        fail_msg:
+        - authselect integrity check failed. Remediation aborted!
+        - This remediation could not be applied because an authselect profile was not selected or the selected profile is
+          not intact.
+        - It is not recommended to manually edit the PAM files when authselect tool is available.
+        - In cases where the default authselect profile does not cover a specific demand, a custom authselect profile is recommended.
+        success_msg:
+        - authselect integrity check passed
+    - name: 'Limit Password Reuse: system-auth - Get authselect current profile'
+      ansible.builtin.shell:
+        cmd: authselect current -r | awk '{ print $1 }'
+      register: result_authselect_profile
+      changed_when: false
+      when:
+      - result_authselect_check_cmd is success
+    - name: 'Limit Password Reuse: system-auth - Define the current authselect profile as a local fact'
+      ansible.builtin.set_fact:
+        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+        authselect_custom_profile: '{{ result_authselect_profile.stdout }}'
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_profile.stdout is match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Define the new authselect custom profile as a local fact'
+      ansible.builtin.set_fact:
+        authselect_current_profile: '{{ result_authselect_profile.stdout }}'
+        authselect_custom_profile: custom/hardening
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_profile.stdout is not match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Get authselect current features to also enable them in the custom profile'
+      ansible.builtin.shell:
+        cmd: authselect current | tail -n+3 | awk '{ print $2 }'
+      register: result_authselect_features
+      changed_when: false
+      when:
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Check if any custom profile with the same name was already created'
+      ansible.builtin.stat:
+        path: /etc/authselect/{{ authselect_custom_profile }}
+      register: result_authselect_custom_profile_present
+      changed_when: false
+      when:
+      - authselect_current_profile is not match("custom/")
+    - name: 'Limit Password Reuse: system-auth - Create an authselect custom profile based on the current profile'
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is not match("custom/")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b --backup=before-hardening-custom-profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+      - authselect_custom_profile is not match(authselect_current_profile)
+    - name: 'Limit Password Reuse: system-auth - Ensure the authselect custom profile is selected'
+      ansible.builtin.command:
+        cmd: authselect select {{ authselect_custom_profile }}
+      register: result_pam_authselect_select_profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - authselect_current_profile is not match("custom/")
+      - authselect_custom_profile is not match(authselect_current_profile)
+    - name: 'Limit Password Reuse: system-auth - Restore the authselect features in the custom profile'
+      ansible.builtin.command:
+        cmd: authselect enable-feature {{ item }}
+      loop: '{{ result_authselect_features.stdout_lines }}'
+      register: result_pam_authselect_restore_features
+      when:
+      - result_authselect_profile is not skipped
+      - result_authselect_features is not skipped
+      - result_pam_authselect_select_profile is not skipped
+    - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b --backup=after-hardening-custom-profile
+      when:
+      - result_authselect_check_cmd is success
+      - result_authselect_profile is not skipped
+      - result_pam_authselect_restore_features is not skipped
+    - name: 'Limit Password Reuse: system-auth - Change the PAM file to be edited according to the custom authselect profile'
+      ansible.builtin.set_fact:
+        pam_file_path: /etc/authselect/{{ authselect_custom_profile }}/{{ pam_file_path | basename }}
+    when:
+    - result_authselect_present.stat.exists
+  - name: 'Limit Password Reuse: system-auth - Check if expected PAM module line is present in {{ pam_file_path }}'
+    ansible.builtin.lineinfile:
+      path: '{{ pam_file_path }}'
+      regexp: ^\s*password\s+requisite\s+pam_pwhistory.so\s*.*
+      state: absent
+    check_mode: true
+    changed_when: false
+    register: result_pam_line_present
+  - name: 'Limit Password Reuse: system-auth - Include or update the PAM module line in {{ pam_file_path }}'
+    block:
+    - name: 'Limit Password Reuse: system-auth - Check if required PAM module line is present in {{ pam_file_path }} with
+        different control'
+      ansible.builtin.lineinfile:
+        path: '{{ pam_file_path }}'
+        regexp: ^\s*password\s+.*\s+pam_pwhistory.so\s*
+        state: absent
+      check_mode: true
+      changed_when: false
+      register: result_pam_line_other_control_present
+    - name: 'Limit Password Reuse: system-auth - Ensure the correct control for the required PAM module line in {{ pam_file_path
+        }}'
+      ansible.builtin.replace:
+        dest: '{{ pam_file_path }}'
+        regexp: ^(\s*password\s+).*(\bpam_pwhistory.so.*)
+        replace: \1requisite \2
+      register: result_pam_module_edit
+      when:
+      - result_pam_line_other_control_present.found == 1
+    - name: 'Limit Password Reuse: system-auth - Ensure the required PAM module line is included in {{ pam_file_path }}'
+      ansible.builtin.lineinfile:
+        dest: '{{ pam_file_path }}'
+        line: password    requisite    pam_pwhistory.so
+      register: result_pam_module_add
+      when:
+      - result_pam_line_other_control_present.found == 0 or result_pam_line_other_control_present.found > 1
+    - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+      ansible.builtin.command:
+        cmd: authselect apply-changes -b
+      when: 'result_authselect_present is defined and result_authselect_present.stat.exists and ((result_pam_module_add is
+        defined and result_pam_module_add.changed) or (result_pam_module_edit is defined and result_pam_module_edit.changed))
+
+        '
+    when:
+    - result_pam_line_present.found is defined
+    - result_pam_line_present.found == 0
+  - name: 'Limit Password Reuse: system-auth - Check if the required PAM module option is present in {{ pam_file_path }}'
+    ansible.builtin.lineinfile:
+      path: '{{ pam_file_path }}'
+      regexp: ^\s*password\s+requisite\s+pam_pwhistory.so\s*.*\sremember\b
+      state: absent
+    check_mode: true
+    changed_when: false
+    register: result_pam_module_remember_option_present
+  - name: 'Limit Password Reuse: system-auth - Ensure the "remember" PAM option for "pam_pwhistory.so" is included in {{ pam_file_path
+      }}'
+    ansible.builtin.lineinfile:
+      path: '{{ pam_file_path }}'
+      backrefs: true
+      regexp: ^(\s*password\s+requisite\s+pam_pwhistory.so.*)
+      line: \1 remember={{ var_password_pam_remember }}
+      state: present
+    register: result_pam_remember_add
+    when:
+    - result_pam_module_remember_option_present.found == 0
+  - name: 'Limit Password Reuse: system-auth - Ensure the required value for "remember" PAM option from "pam_pwhistory.so"
+      in {{ pam_file_path }}'
+    ansible.builtin.lineinfile:
+      path: '{{ pam_file_path }}'
+      backrefs: true
+      regexp: ^(\s*password\s+requisite\s+pam_pwhistory.so\s+.*)(remember)=[0-9a-zA-Z]+\s*(.*)
+      line: \1\2={{ var_password_pam_remember }} \3
+    register: result_pam_remember_edit
+    when:
+    - result_pam_module_remember_option_present.found > 0
+  - name: 'Limit Password Reuse: system-auth - Ensure authselect changes are applied'
+    ansible.builtin.command:
+      cmd: authselect apply-changes -b
+    when:
+    - result_authselect_present.stat.exists
+    - (result_pam_remember_add is defined and result_pam_remember_add.changed) or (result_pam_remember_edit is defined and
+      result_pam_remember_edit.changed)
+  when:
+  - accounts_password_pam_pwhistory_remember_system_auth | bool
+  - configure_strategy | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - '"pam" in ansible_facts.packages'
+  - not result_pwhistory_conf_check.stat.exists
+  tags:
+  - CCE-89176-2
+  - CJIS-5.6.2.1.1
+  - NIST-800-171-3.5.8
+  - NIST-800-53-IA-5(1)(e)
+  - NIST-800-53-IA-5(f)
+  - PCI-DSS-Req-8.2.5
+  - accounts_password_pam_pwhistory_remember_system_auth
   - configure_strategy
   - low_complexity
   - medium_disruption
@@ -1366,11 +2322,11 @@
     - name: Lock Accounts After Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/system-auth
-    - name: Lock Accounts After Failed Password Attempts - Check if system relies on authselect
+    - name: Lock Accounts After Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Lock Accounts After Failed Password Attempts - Remediate using authselect
+    - name: Lock Accounts After Failed Password Attempts - Ensure authselect custom profile is used if authselect is present
       block:
       - name: Lock Accounts After Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -1498,11 +2454,11 @@
     - name: Lock Accounts After Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/password-auth
-    - name: Lock Accounts After Failed Password Attempts - Check if system relies on authselect
+    - name: Lock Accounts After Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Lock Accounts After Failed Password Attempts - Remediate using authselect
+    - name: Lock Accounts After Failed Password Attempts - Ensure authselect custom profile is used if authselect is present
       block:
       - name: Lock Accounts After Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -1966,11 +2922,12 @@
     - name: Configure the root Account for Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/system-auth
-    - name: Configure the root Account for Failed Password Attempts - Check if system relies on authselect
+    - name: Configure the root Account for Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Configure the root Account for Failed Password Attempts - Remediate using authselect
+    - name: Configure the root Account for Failed Password Attempts - Ensure authselect custom profile is used if authselect
+        is present
       block:
       - name: Configure the root Account for Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -2102,11 +3059,12 @@
     - name: Configure the root Account for Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/password-auth
-    - name: Configure the root Account for Failed Password Attempts - Check if system relies on authselect
+    - name: Configure the root Account for Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Configure the root Account for Failed Password Attempts - Remediate using authselect
+    - name: Configure the root Account for Failed Password Attempts - Ensure authselect custom profile is used if authselect
+        is present
       block:
       - name: Configure the root Account for Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -2539,11 +3497,12 @@
     - name: Set Interval For Counting Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/system-auth
-    - name: Set Interval For Counting Failed Password Attempts - Check if system relies on authselect
+    - name: Set Interval For Counting Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Set Interval For Counting Failed Password Attempts - Remediate using authselect
+    - name: Set Interval For Counting Failed Password Attempts - Ensure authselect custom profile is used if authselect is
+        present
       block:
       - name: Set Interval For Counting Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -2674,11 +3633,12 @@
     - name: Set Interval For Counting Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/password-auth
-    - name: Set Interval For Counting Failed Password Attempts - Check if system relies on authselect
+    - name: Set Interval For Counting Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Set Interval For Counting Failed Password Attempts - Remediate using authselect
+    - name: Set Interval For Counting Failed Password Attempts - Ensure authselect custom profile is used if authselect is
+        present
       block:
       - name: Set Interval For Counting Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -3148,11 +4108,11 @@
     - name: Set Lockout Time for Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/system-auth
-    - name: Set Lockout Time for Failed Password Attempts - Check if system relies on authselect
+    - name: Set Lockout Time for Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Set Lockout Time for Failed Password Attempts - Remediate using authselect
+    - name: Set Lockout Time for Failed Password Attempts - Ensure authselect custom profile is used if authselect is present
       block:
       - name: Set Lockout Time for Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -3281,11 +4241,11 @@
     - name: Set Lockout Time for Failed Password Attempts - Define the PAM file to be edited as a local fact
       ansible.builtin.set_fact:
         pam_file_path: /etc/pam.d/password-auth
-    - name: Set Lockout Time for Failed Password Attempts - Check if system relies on authselect
+    - name: Set Lockout Time for Failed Password Attempts - Check if system relies on authselect tool
       ansible.builtin.stat:
         path: /usr/bin/authselect
       register: result_authselect_present
-    - name: Set Lockout Time for Failed Password Attempts - Remediate using authselect
+    - name: Set Lockout Time for Failed Password Attempts - Ensure authselect custom profile is used if authselect is present
       block:
       - name: Set Lockout Time for Failed Password Attempts - Check integrity of authselect current profile
         ansible.builtin.command:
@@ -3538,8 +4498,8 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
-- name: Ensure PAM variable dcredit is set accordingly
-  lineinfile:
+- name: Ensure PAM Enforces Password Requirements - Minimum Digit Characters - Ensure PAM variable dcredit is set accordingly
+  ansible.builtin.lineinfile:
     create: true
     dest: /etc/security/pwquality.conf
     regexp: ^#?\s*dcredit
@@ -3590,8 +4550,8 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
-- name: Ensure PAM variable lcredit is set accordingly
-  lineinfile:
+- name: Ensure PAM Enforces Password Requirements - Minimum Lowercase Characters - Ensure PAM variable lcredit is set accordingly
+  ansible.builtin.lineinfile:
     create: true
     dest: /etc/security/pwquality.conf
     regexp: ^#?\s*lcredit
@@ -3643,8 +4603,8 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
-- name: Ensure PAM variable minlen is set accordingly
-  lineinfile:
+- name: Ensure PAM Enforces Password Requirements - Minimum Length - Ensure PAM variable minlen is set accordingly
+  ansible.builtin.lineinfile:
     create: true
     dest: /etc/security/pwquality.conf
     regexp: ^#?\s*minlen
@@ -3695,8 +4655,8 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
-- name: Ensure PAM variable ocredit is set accordingly
-  lineinfile:
+- name: Ensure PAM Enforces Password Requirements - Minimum Special Characters - Ensure PAM variable ocredit is set accordingly
+  ansible.builtin.lineinfile:
     create: true
     dest: /etc/security/pwquality.conf
     regexp: ^#?\s*ocredit
@@ -3746,8 +4706,8 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
-- name: Ensure PAM variable ucredit is set accordingly
-  lineinfile:
+- name: Ensure PAM Enforces Password Requirements - Minimum Uppercase Characters - Ensure PAM variable ucredit is set accordingly
+  ansible.builtin.lineinfile:
     create: true
     dest: /etc/security/pwquality.conf
     regexp: ^#?\s*ucredit
@@ -3831,11 +4791,11 @@
   - name: Set PAM's Password Hashing Algorithm - Define the PAM file to be edited as a local fact
     ansible.builtin.set_fact:
       pam_file_path: /etc/pam.d/system-auth
-  - name: Set PAM's Password Hashing Algorithm - Check if system relies on authselect
+  - name: Set PAM's Password Hashing Algorithm - Check if system relies on authselect tool
     ansible.builtin.stat:
       path: /usr/bin/authselect
     register: result_authselect_present
-  - name: Set PAM's Password Hashing Algorithm - Remediate using authselect
+  - name: Set PAM's Password Hashing Algorithm - Ensure authselect custom profile is used if authselect is present
     block:
     - name: Set PAM's Password Hashing Algorithm - Check integrity of authselect current profile
       ansible.builtin.command:
@@ -4129,11 +5089,12 @@
   - name: Set number of Password Hashing Rounds - password-auth - Define the PAM file to be edited as a local fact
     ansible.builtin.set_fact:
       pam_file_path: /etc/pam.d/password-auth
-  - name: Set number of Password Hashing Rounds - password-auth - Check if system relies on authselect
+  - name: Set number of Password Hashing Rounds - password-auth - Check if system relies on authselect tool
     ansible.builtin.stat:
       path: /usr/bin/authselect
     register: result_authselect_present
-  - name: Set number of Password Hashing Rounds - password-auth - Remediate using authselect
+  - name: Set number of Password Hashing Rounds - password-auth - Ensure authselect custom profile is used if authselect is
+      present
     block:
     - name: Set number of Password Hashing Rounds - password-auth - Check integrity of authselect current profile
       ansible.builtin.command:
@@ -4386,11 +5347,12 @@
   - name: Set number of Password Hashing Rounds - system-auth - Define the PAM file to be edited as a local fact
     ansible.builtin.set_fact:
       pam_file_path: /etc/pam.d/system-auth
-  - name: Set number of Password Hashing Rounds - system-auth - Check if system relies on authselect
+  - name: Set number of Password Hashing Rounds - system-auth - Check if system relies on authselect tool
     ansible.builtin.stat:
       path: /usr/bin/authselect
     register: result_authselect_present
-  - name: Set number of Password Hashing Rounds - system-auth - Remediate using authselect
+  - name: Set number of Password Hashing Rounds - system-auth - Ensure authselect custom profile is used if authselect is
+      present
     block:
     - name: Set number of Password Hashing Rounds - system-auth - Check integrity of authselect current profile
       ansible.builtin.command:
