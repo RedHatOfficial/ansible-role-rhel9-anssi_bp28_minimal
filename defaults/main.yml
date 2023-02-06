@@ -1,7 +1,8 @@
 ---
 # defaults file for rhel9_anssi_bp28_minimal
 var_authselect_profile: sssd
-var_password_pam_unix_remember: '2'
+var_password_pam_remember: '2'
+var_password_pam_remember_control_flag: requisite
 var_accounts_passwords_pam_faillock_deny: '3'
 var_accounts_passwords_pam_faillock_fail_interval: '900'
 var_accounts_passwords_pam_faillock_unlock_time: '900'
@@ -17,8 +18,9 @@ accounts_password_pam_dcredit: true
 accounts_password_pam_lcredit: true
 accounts_password_pam_minlen: true
 accounts_password_pam_ocredit: true
+accounts_password_pam_pwhistory_remember_password_auth: true
+accounts_password_pam_pwhistory_remember_system_auth: true
 accounts_password_pam_ucredit: true
-accounts_password_pam_unix_remember: true
 accounts_password_pam_unix_rounds_password_auth: true
 accounts_password_pam_unix_rounds_system_auth: true
 accounts_passwords_pam_faillock_deny: true
