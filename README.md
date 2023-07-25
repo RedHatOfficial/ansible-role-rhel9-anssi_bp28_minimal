@@ -4,7 +4,7 @@ ANSSI-BP-028 (minimal)
 Ansible Role for ANSSI-BP-028 (minimal)  
   
 Profile Description:  
-This profile contains configurations that align to ANSSI-BP-028 at the minimal hardening level.  
+This profile contains configurations that align to ANSSI-BP-028 v2.0 at the minimal hardening level.  
 ANSSI is the French National Information Security Agency, and stands for Agence nationale de la sécurité des systèmes d'information.  
 ANSSI-BP-028 is a configuration recommendation for GNU/Linux systems.  
 A copy of the ANSSI-BP-028 can be found at the ANSSI website:  
