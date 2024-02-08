@@ -1,10 +1,11 @@
 - name: Find /etc/sudoers.d/ files
-  find:
+  ansible.builtin.find:
     paths:
     - /etc/sudoers.d/
   register: sudoers
   tags:
   - CCE-83544-7
+  - DISA-STIG-RHEL-09-432025
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-11
   - low_complexity
@@ -14,6 +15,7 @@
   - restrict_strategy
   - sudo_remove_no_authenticate
   when:
+  - DISA_STIG_RHEL_09_432025 | bool
   - low_complexity | bool
   - low_disruption | bool
   - medium_severity | bool
@@ -22,7 +24,7 @@
   - sudo_remove_no_authenticate | bool
 
 - name: Remove lines containing !authenticate from sudoers files
-  replace:
+  ansible.builtin.replace:
     regexp: (^(?!#).*[\s]+\!authenticate.*$)
     replace: '# \g<1>'
     path: '{{ item.path }}'
@@ -32,6 +34,7 @@
   - '{{ sudoers.files }}'
   tags:
   - CCE-83544-7
+  - DISA-STIG-RHEL-09-432025
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-11
   - low_complexity
@@ -41,6 +44,7 @@
   - restrict_strategy
   - sudo_remove_no_authenticate
   when:
+  - DISA_STIG_RHEL_09_432025 | bool
   - low_complexity | bool
   - low_disruption | bool
   - medium_severity | bool
@@ -49,12 +53,13 @@
   - sudo_remove_no_authenticate | bool
 
 - name: Find /etc/sudoers.d/ files
-  find:
+  ansible.builtin.find:
     paths:
     - /etc/sudoers.d/
   register: sudoers
   tags:
   - CCE-83536-3
+  - DISA-STIG-RHEL-09-611085
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-11
   - low_complexity
@@ -64,6 +69,7 @@
   - restrict_strategy
   - sudo_remove_nopasswd
   when:
+  - DISA_STIG_RHEL_09_611085 | bool
   - low_complexity | bool
   - low_disruption | bool
   - medium_severity | bool
@@ -72,7 +78,7 @@
   - sudo_remove_nopasswd | bool
 
 - name: Remove lines containing NOPASSWD from sudoers files
-  replace:
+  ansible.builtin.replace:
     regexp: (^(?!#).*[\s]+NOPASSWD[\s]*\:.*$)
     replace: '# \g<1>'
     path: '{{ item.path }}'
@@ -82,6 +88,7 @@
   - '{{ sudoers.files }}'
   tags:
   - CCE-83536-3
+  - DISA-STIG-RHEL-09-611085
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-11
   - low_complexity
@@ -91,6 +98,7 @@
   - restrict_strategy
   - sudo_remove_nopasswd
   when:
+  - DISA_STIG_RHEL_09_611085 | bool
   - low_complexity | bool
   - low_disruption | bool
   - medium_severity | bool
@@ -124,6 +132,7 @@
   tags:
   - CCE-83457-2
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214015
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-11(a)
   - NIST-800-53-CM-11(b)
@@ -143,6 +152,7 @@
   - medium_disruption
   - no_reboot_needed
   when:
+  - DISA_STIG_RHEL_09_214015 | bool
   - configure_strategy | bool
   - ensure_gpgcheck_globally_activated | bool
   - high_severity | bool
@@ -159,6 +169,7 @@
     no_extra_spaces: true
     create: false
   when:
+  - DISA_STIG_RHEL_09_214015 | bool
   - configure_strategy | bool
   - ensure_gpgcheck_globally_activated | bool
   - high_severity | bool
@@ -169,6 +180,7 @@
   tags:
   - CCE-83457-2
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214015
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-11(a)
   - NIST-800-53-CM-11(b)
@@ -193,6 +205,7 @@
     manager: auto
   tags:
   - CCE-83463-0
+  - DISA-STIG-RHEL-09-214020
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-11(a)
   - NIST-800-53-CM-11(b)
@@ -207,6 +220,7 @@
   - no_reboot_needed
   - unknown_strategy
   when:
+  - DISA_STIG_RHEL_09_214020 | bool
   - ensure_gpgcheck_local_packages | bool
   - high_severity | bool
   - low_complexity | bool
@@ -234,6 +248,7 @@
       no_extra_spaces: true
       create: true
   when:
+  - DISA_STIG_RHEL_09_214020 | bool
   - ensure_gpgcheck_local_packages | bool
   - high_severity | bool
   - low_complexity | bool
@@ -243,6 +258,7 @@
   - '"yum" in ansible_facts.packages'
   tags:
   - CCE-83463-0
+  - DISA-STIG-RHEL-09-214020
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-11(a)
   - NIST-800-53-CM-11(b)
@@ -269,6 +285,7 @@
   tags:
   - CCE-83464-8
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214025
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-11(a)
   - NIST-800-53-CM-11(b)
@@ -288,6 +305,7 @@
   - medium_disruption
   - no_reboot_needed
   when:
+  - DISA_STIG_RHEL_09_214025 | bool
   - enable_strategy | bool
   - ensure_gpgcheck_never_disabled | bool
   - high_severity | bool
@@ -306,6 +324,7 @@
   tags:
   - CCE-83464-8
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214025
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-11(a)
   - NIST-800-53-CM-11(b)
@@ -325,6 +344,7 @@
   - medium_disruption
   - no_reboot_needed
   when:
+  - DISA_STIG_RHEL_09_214025 | bool
   - enable_strategy | bool
   - ensure_gpgcheck_never_disabled | bool
   - high_severity | bool
@@ -340,6 +360,7 @@
   tags:
   - CCE-84180-9
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214010
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-5(3)
   - NIST-800-53-CM-6(a)
@@ -347,6 +368,7 @@
   - NIST-800-53-SC-12(3)
   - NIST-800-53-SI-7
   - PCI-DSS-Req-6.2
+  - PCI-DSSv4-6.3.3
   - ensure_redhat_gpgkey_installed
   - high_severity
   - medium_complexity
@@ -354,6 +376,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_214010 | bool
   - ensure_redhat_gpgkey_installed | bool
   - high_severity | bool
   - medium_complexity | bool
@@ -369,6 +392,7 @@
   tags:
   - CCE-84180-9
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214010
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-5(3)
   - NIST-800-53-CM-6(a)
@@ -376,6 +400,7 @@
   - NIST-800-53-SC-12(3)
   - NIST-800-53-SI-7
   - PCI-DSS-Req-6.2
+  - PCI-DSSv4-6.3.3
   - ensure_redhat_gpgkey_installed
   - high_severity
   - medium_complexity
@@ -383,6 +408,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_214010 | bool
   - ensure_redhat_gpgkey_installed | bool
   - high_severity | bool
   - medium_complexity | bool
@@ -398,6 +424,7 @@
   tags:
   - CCE-84180-9
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214010
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-5(3)
   - NIST-800-53-CM-6(a)
@@ -405,6 +432,7 @@
   - NIST-800-53-SC-12(3)
   - NIST-800-53-SI-7
   - PCI-DSS-Req-6.2
+  - PCI-DSSv4-6.3.3
   - ensure_redhat_gpgkey_installed
   - high_severity
   - medium_complexity
@@ -412,6 +440,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_214010 | bool
   - ensure_redhat_gpgkey_installed | bool
   - high_severity | bool
   - medium_complexity | bool
@@ -425,6 +454,7 @@
   tags:
   - CCE-84180-9
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214010
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-5(3)
   - NIST-800-53-CM-6(a)
@@ -432,6 +462,7 @@
   - NIST-800-53-SC-12(3)
   - NIST-800-53-SI-7
   - PCI-DSS-Req-6.2
+  - PCI-DSSv4-6.3.3
   - ensure_redhat_gpgkey_installed
   - high_severity
   - medium_complexity
@@ -439,6 +470,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_214010 | bool
   - ensure_redhat_gpgkey_installed | bool
   - high_severity | bool
   - medium_complexity | bool
@@ -451,6 +483,7 @@
     state: present
     key: /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
   when:
+  - DISA_STIG_RHEL_09_214010 | bool
   - ensure_redhat_gpgkey_installed | bool
   - high_severity | bool
   - medium_complexity | bool
@@ -464,6 +497,7 @@
   tags:
   - CCE-84180-9
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-214010
   - NIST-800-171-3.4.8
   - NIST-800-53-CM-5(3)
   - NIST-800-53-CM-6(a)
@@ -471,6 +505,7 @@
   - NIST-800-53-SC-12(3)
   - NIST-800-53-SI-7
   - PCI-DSS-Req-6.2
+  - PCI-DSSv4-6.3.3
   - ensure_redhat_gpgkey_installed
   - high_severity
   - medium_complexity
@@ -485,6 +520,7 @@
   tags:
   - CCE-84185-8
   - CJIS-5.10.4.1
+  - DISA-STIG-RHEL-09-211015
   - NIST-800-53-CM-6(a)
   - NIST-800-53-SI-2(5)
   - NIST-800-53-SI-2(c)
@@ -498,6 +534,7 @@
   - security_patches_up_to_date
   - skip_ansible_lint
   when:
+  - DISA_STIG_RHEL_09_211015 | bool
   - high_disruption | bool
   - low_complexity | bool
   - medium_severity | bool
@@ -1364,6 +1401,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1376,6 +1414,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1388,6 +1427,7 @@
     path: /usr/bin/authselect
   register: result_authselect_present
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1398,6 +1438,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1451,6 +1492,7 @@
     - result_authselect_enable_feature_cmd is not skipped
     - result_authselect_enable_feature_cmd is success
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1462,6 +1504,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1518,6 +1561,7 @@
     when:
     - result_pam_faillock_is_enabled.found == 0
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1529,6 +1573,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1546,6 +1591,7 @@
     path: /etc/security/faillock.conf
   register: result_faillock_conf_check
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1556,6 +1602,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1575,6 +1622,7 @@
     line: deny = {{ var_accounts_passwords_pam_faillock_deny }}
     state: present
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1586,6 +1634,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1865,6 +1914,7 @@
     when:
     - result_pam_file_present.stat.exists
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1876,6 +1926,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1952,6 +2003,7 @@
     when:
     - result_pam_faillock_deny_parameter_is_present.found > 0
   when:
+  - DISA_STIG_RHEL_09_411075 | bool
   - accounts_passwords_pam_faillock_deny | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -1963,6 +2015,7 @@
   tags:
   - CCE-83587-6
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411075
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
@@ -1980,6 +2033,7 @@
     manager: auto
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -1990,6 +2044,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2002,6 +2057,7 @@
     path: /usr/bin/authselect
   register: result_authselect_present
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2011,6 +2067,7 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -2064,6 +2121,7 @@
     - result_authselect_enable_feature_cmd is not skipped
     - result_authselect_enable_feature_cmd is success
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2074,6 +2132,7 @@
   - result_authselect_present.stat.exists
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -2128,6 +2187,7 @@
     when:
     - result_pam_faillock_is_enabled.found == 0
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2138,6 +2198,7 @@
   - not result_authselect_present.stat.exists
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -2153,6 +2214,7 @@
     path: /etc/security/faillock.conf
   register: result_faillock_conf_check
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2162,6 +2224,7 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -2179,6 +2242,7 @@
     line: even_deny_root
     state: present
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2189,6 +2253,7 @@
   - result_faillock_conf_check.stat.exists
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -2477,6 +2542,7 @@
     when:
     - result_pam_file_present.stat.exists
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2487,6 +2553,7 @@
   - result_faillock_conf_check.stat.exists
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -2536,6 +2603,7 @@
     when:
     - result_pam_faillock_even_deny_root_parameter_is_present.found == 0
   when:
+  - DISA_STIG_RHEL_09_411080 | bool
   - accounts_passwords_pam_faillock_deny_root | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2546,6 +2614,7 @@
   - not result_faillock_conf_check.stat.exists
   tags:
   - CCE-83589-2
+  - DISA-STIG-RHEL-09-411080
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(c)
@@ -2561,6 +2630,7 @@
     manager: auto
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -2570,6 +2640,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2582,6 +2653,7 @@
     path: /usr/bin/authselect
   register: result_authselect_present
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2591,6 +2663,7 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -2643,6 +2716,7 @@
     - result_authselect_enable_feature_cmd is not skipped
     - result_authselect_enable_feature_cmd is success
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2653,6 +2727,7 @@
   - result_authselect_present.stat.exists
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -2706,6 +2781,7 @@
     when:
     - result_pam_faillock_is_enabled.found == 0
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2716,6 +2792,7 @@
   - not result_authselect_present.stat.exists
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -2730,6 +2807,7 @@
     path: /etc/security/faillock.conf
   register: result_faillock_conf_check
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2739,6 +2817,7 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -2755,6 +2834,7 @@
     line: fail_interval = {{ var_accounts_passwords_pam_faillock_fail_interval }}
     state: present
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -2765,6 +2845,7 @@
   - result_faillock_conf_check.stat.exists
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -3050,6 +3131,7 @@
     when:
     - result_pam_file_present.stat.exists
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3060,6 +3142,7 @@
   - result_faillock_conf_check.stat.exists
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -3133,6 +3216,7 @@
     when:
     - result_pam_faillock_fail_interval_parameter_is_present.found > 0
   when:
+  - DISA_STIG_RHEL_09_411085 | bool
   - accounts_passwords_pam_faillock_interval | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3143,6 +3227,7 @@
   - not result_faillock_conf_check.stat.exists
   tags:
   - CCE-83583-5
+  - DISA-STIG-RHEL-09-411085
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - accounts_passwords_pam_faillock_interval
@@ -3158,6 +3243,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3170,6 +3256,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3182,6 +3269,7 @@
     path: /usr/bin/authselect
   register: result_authselect_present
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3192,6 +3280,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3245,6 +3334,7 @@
     - result_authselect_enable_feature_cmd is not skipped
     - result_authselect_enable_feature_cmd is success
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3256,6 +3346,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3312,6 +3403,7 @@
     when:
     - result_pam_faillock_is_enabled.found == 0
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3323,6 +3415,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3340,6 +3433,7 @@
     path: /etc/security/faillock.conf
   register: result_faillock_conf_check
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3350,6 +3444,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3369,6 +3464,7 @@
     line: unlock_time = {{ var_accounts_passwords_pam_faillock_unlock_time }}
     state: present
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3380,6 +3476,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3661,6 +3758,7 @@
     when:
     - result_pam_file_present.stat.exists
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3672,6 +3770,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3748,6 +3847,7 @@
     when:
     - result_pam_faillock_unlock_time_parameter_is_present.found > 0
   when:
+  - DISA_STIG_RHEL_09_411090 | bool
   - accounts_passwords_pam_faillock_unlock_time | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3759,6 +3859,7 @@
   tags:
   - CCE-83588-4
   - CJIS-5.5.3
+  - DISA-STIG-RHEL-09-411090
   - NIST-800-171-3.1.8
   - NIST-800-53-AC-7(b)
   - NIST-800-53-CM-6(a)
@@ -3776,13 +3877,13 @@
     manager: auto
   tags:
   - CCE-83566-0
+  - DISA-STIG-RHEL-09-611070
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
   - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_dcredit
   - low_complexity
   - low_disruption
@@ -3790,6 +3891,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_611070 | bool
   - accounts_password_pam_dcredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3804,6 +3906,7 @@
     regexp: ^#?\s*dcredit
     line: dcredit = {{ var_password_pam_dcredit }}
   when:
+  - DISA_STIG_RHEL_09_611070 | bool
   - accounts_password_pam_dcredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3813,13 +3916,13 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83566-0
+  - DISA-STIG-RHEL-09-611070
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
   - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_dcredit
   - low_complexity
   - low_disruption
@@ -3832,13 +3935,13 @@
     manager: auto
   tags:
   - CCE-83570-2
+  - DISA-STIG-RHEL-09-611065
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
   - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_lcredit
   - low_complexity
   - low_disruption
@@ -3846,6 +3949,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_611065 | bool
   - accounts_password_pam_lcredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3860,6 +3964,7 @@
     regexp: ^#?\s*lcredit
     line: lcredit = {{ var_password_pam_lcredit }}
   when:
+  - DISA_STIG_RHEL_09_611065 | bool
   - accounts_password_pam_lcredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3869,13 +3974,13 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83570-2
+  - DISA-STIG-RHEL-09-611065
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
   - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_lcredit
   - low_complexity
   - low_disruption
@@ -3889,13 +3994,13 @@
   tags:
   - CCE-83579-3
   - CJIS-5.6.2.1.1
+  - DISA-STIG-RHEL-09-611090
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
   - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_minlen
   - low_complexity
   - low_disruption
@@ -3903,6 +4008,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_611090 | bool
   - accounts_password_pam_minlen | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3917,6 +4023,7 @@
     regexp: ^#?\s*minlen
     line: minlen = {{ var_password_pam_minlen }}
   when:
+  - DISA_STIG_RHEL_09_611090 | bool
   - accounts_password_pam_minlen | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3927,13 +4034,13 @@
   tags:
   - CCE-83579-3
   - CJIS-5.6.2.1.1
+  - DISA-STIG-RHEL-09-611090
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
   - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_minlen
   - low_complexity
   - low_disruption
@@ -3946,6 +4053,7 @@
     manager: auto
   tags:
   - CCE-83565-2
+  - DISA-STIG-RHEL-09-611100
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
@@ -3957,6 +4065,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_611100 | bool
   - accounts_password_pam_ocredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3971,6 +4080,7 @@
     regexp: ^#?\s*ocredit
     line: ocredit = {{ var_password_pam_ocredit }}
   when:
+  - DISA_STIG_RHEL_09_611100 | bool
   - accounts_password_pam_ocredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -3980,6 +4090,7 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83565-2
+  - DISA-STIG-RHEL-09-611100
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
@@ -3996,13 +4107,12 @@
     manager: auto
   tags:
   - CCE-83568-6
+  - DISA-STIG-RHEL-09-611110
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
-  - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_ucredit
   - low_complexity
   - low_disruption
@@ -4010,6 +4120,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_611110 | bool
   - accounts_password_pam_ucredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -4024,6 +4135,7 @@
     regexp: ^#?\s*ucredit
     line: ucredit = {{ var_password_pam_ucredit }}
   when:
+  - DISA_STIG_RHEL_09_611110 | bool
   - accounts_password_pam_ucredit | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -4033,13 +4145,12 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83568-6
+  - DISA-STIG-RHEL-09-611110
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
   - NIST-800-53-IA-5(4)
   - NIST-800-53-IA-5(c)
   - PCI-DSS-Req-8.2.3
-  - PCI-DSSv4-8.3.6
-  - PCI-DSSv4-8.3.9
   - accounts_password_pam_ucredit
   - low_complexity
   - low_disruption
@@ -4313,12 +4424,13 @@
   tags:
   - CCE-83606-4
   - CJIS-5.6.2.1
+  - DISA-STIG-RHEL-09-411010
   - NIST-800-171-3.5.6
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(d)
   - NIST-800-53-IA-5(f)
   - PCI-DSS-Req-8.2.4
-  - PCI-DSSv4-8.3.10.1
+  - PCI-DSSv4-8.3.9
   - accounts_maximum_age_login_defs
   - low_complexity
   - low_disruption
@@ -4326,6 +4438,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_411010 | bool
   - accounts_maximum_age_login_defs | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -4340,6 +4453,7 @@
     regexp: ^#?PASS_MAX_DAYS
     line: PASS_MAX_DAYS {{ var_accounts_maximum_age_login_defs }}
   when:
+  - DISA_STIG_RHEL_09_411010 | bool
   - accounts_maximum_age_login_defs | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -4350,12 +4464,13 @@
   tags:
   - CCE-83606-4
   - CJIS-5.6.2.1
+  - DISA-STIG-RHEL-09-411010
   - NIST-800-171-3.5.6
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(d)
   - NIST-800-53-IA-5(f)
   - PCI-DSS-Req-8.2.4
-  - PCI-DSSv4-8.3.10.1
+  - PCI-DSSv4-8.3.9
   - accounts_maximum_age_login_defs
   - low_complexity
   - low_disruption
@@ -4369,6 +4484,7 @@
   tags:
   - CCE-83608-0
   - CJIS-5.6.2.1
+  - DISA-STIG-RHEL-09-611095
   - NIST-800-171-3.5.7
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
@@ -4380,6 +4496,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_611095 | bool
   - accounts_password_minlen_login_defs | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -4395,6 +4512,7 @@
     line: PASS_MIN_LEN        {{ var_accounts_password_minlen_login_defs }}
     create: true
   when:
+  - DISA_STIG_RHEL_09_611095 | bool
   - accounts_password_minlen_login_defs | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -4405,6 +4523,7 @@
   tags:
   - CCE-83608-0
   - CJIS-5.6.2.1
+  - DISA-STIG-RHEL-09-611095
   - NIST-800-171-3.5.7
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(1)(a)
@@ -4421,6 +4540,7 @@
     manager: auto
   tags:
   - CCE-83615-5
+  - DISA-STIG-RHEL-09-611050
   - accounts_password_pam_unix_rounds_password_auth
   - configure_strategy
   - low_complexity
@@ -4428,6 +4548,7 @@
   - medium_severity
   - no_reboot_needed
   when:
+  - DISA_STIG_RHEL_09_611050 | bool
   - accounts_password_pam_unix_rounds_password_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4440,6 +4561,7 @@
     path: /etc/pam.d/password-auth
   register: result_pam_file_present
   when:
+  - DISA_STIG_RHEL_09_611050 | bool
   - accounts_password_pam_unix_rounds_password_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4449,6 +4571,7 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83615-5
+  - DISA-STIG-RHEL-09-611050
   - accounts_password_pam_unix_rounds_password_auth
   - configure_strategy
   - low_complexity
@@ -4658,6 +4781,7 @@
     - result_authselect_present.stat.exists
     - "(result_pam_rounds_add is defined and result_pam_rounds_add.changed)\n or (result_pam_rounds_edit is defined and result_pam_rounds_edit.changed)"
   when:
+  - DISA_STIG_RHEL_09_611050 | bool
   - accounts_password_pam_unix_rounds_password_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4668,6 +4792,7 @@
   - result_pam_file_present.stat.exists
   tags:
   - CCE-83615-5
+  - DISA-STIG-RHEL-09-611050
   - accounts_password_pam_unix_rounds_password_auth
   - configure_strategy
   - low_complexity
@@ -4680,6 +4805,7 @@
     manager: auto
   tags:
   - CCE-83621-3
+  - DISA-STIG-RHEL-09-611055
   - accounts_password_pam_unix_rounds_system_auth
   - configure_strategy
   - low_complexity
@@ -4687,6 +4813,7 @@
   - medium_severity
   - no_reboot_needed
   when:
+  - DISA_STIG_RHEL_09_611055 | bool
   - accounts_password_pam_unix_rounds_system_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4699,6 +4826,7 @@
     path: /etc/pam.d/system-auth
   register: result_pam_file_present
   when:
+  - DISA_STIG_RHEL_09_611055 | bool
   - accounts_password_pam_unix_rounds_system_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4708,6 +4836,7 @@
   - '"pam" in ansible_facts.packages'
   tags:
   - CCE-83621-3
+  - DISA-STIG-RHEL-09-611055
   - accounts_password_pam_unix_rounds_system_auth
   - configure_strategy
   - low_complexity
@@ -4917,6 +5046,7 @@
     - result_authselect_present.stat.exists
     - "(result_pam_rounds_add is defined and result_pam_rounds_add.changed)\n or (result_pam_rounds_edit is defined and result_pam_rounds_edit.changed)"
   when:
+  - DISA_STIG_RHEL_09_611055 | bool
   - accounts_password_pam_unix_rounds_system_auth | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4927,6 +5057,7 @@
   - result_pam_file_present.stat.exists
   tags:
   - CCE-83621-3
+  - DISA-STIG-RHEL-09-611055
   - accounts_password_pam_unix_rounds_system_auth
   - configure_strategy
   - low_complexity
@@ -4964,6 +5095,7 @@
     search_paths: []
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -4971,6 +5103,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -4989,6 +5122,7 @@
   register: result_relevant_root_dirs
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -4996,6 +5130,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5010,6 +5145,7 @@
   loop: '{{ result_relevant_root_dirs.files }}'
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -5017,6 +5153,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5030,6 +5167,7 @@
     search_paths: '{{ search_paths | union([item.mount]) }}'
   loop: '{{ ansible_mounts }}'
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5040,6 +5178,7 @@
   - item.mount != '/'
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -5053,6 +5192,7 @@
     search_paths: '{{ search_paths | union([item.device.split('':'')[1]]) }}'
   loop: '{{ ansible_mounts }}'
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5062,6 +5202,7 @@
   - item.device is search("localhost:")
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -5074,6 +5215,7 @@
     world_writable_dirs: []
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -5081,6 +5223,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5096,6 +5239,7 @@
   register: result_found_dirs
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -5103,6 +5247,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5117,6 +5262,7 @@
   loop: '{{ result_found_dirs.results }}'
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -5124,6 +5270,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5138,6 +5285,7 @@
   loop: '{{ world_writable_dirs }}'
   tags:
   - CCE-83903-5
+  - DISA-STIG-RHEL-09-232240
   - dir_perms_world_writable_root_owned
   - low_complexity
   - medium_disruption
@@ -5145,6 +5293,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232240 | bool
   - dir_perms_world_writable_root_owned | bool
   - low_complexity | bool
   - medium_disruption | bool
@@ -5182,8 +5331,10 @@
     search_paths: []
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5191,6 +5342,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5209,8 +5361,10 @@
   register: result_relevant_root_dirs
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5218,6 +5372,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5232,8 +5387,10 @@
   loop: '{{ result_relevant_root_dirs.files }}'
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5241,6 +5398,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5254,6 +5412,7 @@
     search_paths: '{{ search_paths | union([item.mount]) }}'
   loop: '{{ ansible_mounts }}'
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5264,8 +5423,10 @@
   - item.mount != '/'
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5279,6 +5440,7 @@
     search_paths: '{{ search_paths | union([item.device.split('':'')[1]]) }}'
   loop: '{{ ansible_mounts }}'
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5288,8 +5450,10 @@
   - item.device is search("localhost:")
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5302,8 +5466,10 @@
     world_writable_dirs: []
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5311,6 +5477,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5326,8 +5493,10 @@
   register: result_found_dirs
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5335,6 +5504,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5349,8 +5519,10 @@
   loop: '{{ result_found_dirs.results }}'
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5358,6 +5530,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5373,8 +5546,10 @@
   loop: '{{ world_writable_dirs }}'
   tags:
   - CCE-83895-3
+  - DISA-STIG-RHEL-09-232245
   - NIST-800-53-AC-6(1)
   - NIST-800-53-CM-6(a)
+  - PCI-DSSv4-2.2.6
   - dir_perms_world_writable_sticky_bits
   - low_complexity
   - low_disruption
@@ -5382,6 +5557,7 @@
   - no_reboot_needed
   - restrict_strategy
   when:
+  - DISA_STIG_RHEL_09_232245 | bool
   - dir_perms_world_writable_sticky_bits | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5418,6 +5594,7 @@
     name: sendmail
     state: absent
   when:
+  - DISA_STIG_RHEL_09_215020 | bool
   - disable_strategy | bool
   - low_complexity | bool
   - low_disruption | bool
@@ -5427,6 +5604,7 @@
   - ansible_virtualization_type not in ["docker", "lxc", "openvz", "podman", "container"]
   tags:
   - CCE-90830-1
+  - DISA-STIG-RHEL-09-215020
   - NIST-800-53-CM-6(a)
   - NIST-800-53-CM-7(a)
   - NIST-800-53-CM-7(b)
@@ -5489,6 +5667,7 @@
     state: absent
   tags:
   - CCE-84152-8
+  - DISA-STIG-RHEL-09-215030
   - NIST-800-53-CM-6(a)
   - NIST-800-53-CM-7(a)
   - NIST-800-53-CM-7(b)
@@ -5502,6 +5681,7 @@
   - no_reboot_needed
   - package_ypserv_removed
   when:
+  - DISA_STIG_RHEL_09_215030 | bool
   - disable_strategy | bool
   - high_severity | bool
   - low_complexity | bool
@@ -5515,10 +5695,12 @@
     state: absent
   tags:
   - CCE-84143-7
+  - DISA-STIG-RHEL-09-215035
   - NIST-800-53-CM-6(a)
   - NIST-800-53-CM-7(a)
   - NIST-800-53-CM-7(b)
   - NIST-800-53-IA-5(1)(c)
+  - PCI-DSSv4-2.2.4
   - disable_strategy
   - high_severity
   - low_complexity
@@ -5526,6 +5708,7 @@
   - no_reboot_needed
   - package_rsh-server_removed
   when:
+  - DISA_STIG_RHEL_09_215035 | bool
   - disable_strategy | bool
   - high_severity | bool
   - low_complexity | bool
@@ -5561,6 +5744,7 @@
     state: absent
   tags:
   - CCE-84158-5
+  - PCI-DSSv4-2.2.4
   - disable_strategy
   - low_complexity
   - low_disruption
@@ -5602,6 +5786,7 @@
     state: absent
   tags:
   - CCE-84149-4
+  - DISA-STIG-RHEL-09-215040
   - NIST-800-53-CM-6(a)
   - NIST-800-53-CM-7(a)
   - NIST-800-53-CM-7(b)
@@ -5614,6 +5799,7 @@
   - no_reboot_needed
   - package_telnet-server_removed
   when:
+  - DISA_STIG_RHEL_09_215040 | bool
   - disable_strategy | bool
   - high_severity | bool
   - low_complexity | bool
@@ -5649,9 +5835,11 @@
     state: absent
   tags:
   - CCE-84154-4
+  - DISA-STIG-RHEL-09-215060
   - NIST-800-53-CM-6(a)
   - NIST-800-53-CM-7(a)
   - NIST-800-53-CM-7(b)
+  - PCI-DSSv4-2.2.4
   - disable_strategy
   - high_severity
   - low_complexity
@@ -5659,6 +5847,7 @@
   - no_reboot_needed
   - package_tftp-server_removed
   when:
+  - DISA_STIG_RHEL_09_215060 | bool
   - disable_strategy | bool
   - high_severity | bool
   - low_complexity | bool
@@ -5672,6 +5861,7 @@
     state: absent
   tags:
   - CCE-84153-6
+  - PCI-DSSv4-2.2.4
   - disable_strategy
   - low_complexity
   - low_disruption
