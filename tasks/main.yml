@@ -176,7 +176,7 @@
   - low_complexity | bool
   - medium_disruption | bool
   - no_reboot_needed | bool
-  - '"yum" in ansible_facts.packages'
+  - '"dnf" in ansible_facts.packages'
   tags:
   - CCE-83457-2
   - CJIS-5.10.4.1
@@ -255,7 +255,7 @@
   - medium_disruption | bool
   - no_reboot_needed | bool
   - unknown_strategy | bool
-  - '"yum" in ansible_facts.packages'
+  - '"dnf" in ansible_facts.packages'
   tags:
   - CCE-83463-0
   - DISA-STIG-RHEL-09-214020
@@ -320,7 +320,17 @@
     option: gpgcheck
     value: '1'
     no_extra_spaces: true
-  loop: '{{ repo_grep_results.stdout | regex_findall( ''(.+\.repo):\[(.+)\]\n?'' ) }}'
+  loop: '{{ repo_grep_results.stdout |regex_findall( ''(.+\.repo):\[(.+)\]\n?'' ) if repo_grep_results is not skipped else
+    []}}'
+  when:
+  - DISA_STIG_RHEL_09_214025 | bool
+  - enable_strategy | bool
+  - ensure_gpgcheck_never_disabled | bool
+  - high_severity | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - no_reboot_needed | bool
+  - repo_grep_results is not skipped
   tags:
   - CCE-83464-8
   - CJIS-5.10.4.1
@@ -343,14 +353,6 @@
   - low_complexity
   - medium_disruption
   - no_reboot_needed
-  when:
-  - DISA_STIG_RHEL_09_214025 | bool
-  - enable_strategy | bool
-  - ensure_gpgcheck_never_disabled | bool
-  - high_severity | bool
-  - low_complexity | bool
-  - medium_disruption | bool
-  - no_reboot_needed | bool
 
 - name: Read permission of GPG key directory
   stat:
@@ -450,7 +452,9 @@
 
 - name: Set Fact - Valid fingerprints
   set_fact:
-    gpg_valid_fingerprints: ("567E347AD0044ADE55BA8A5F199E2F91FD431D51" "7E4624258C406535D56D6F135054E4A45A6340B3")
+    gpg_valid_fingerprints:
+    - 567E347AD0044ADE55BA8A5F199E2F91FD431D51
+    - 7E4624258C406535D56D6F135054E4A45A6340B3
   tags:
   - CCE-84180-9
   - CJIS-5.10.4.1
@@ -5260,6 +5264,15 @@
   ansible.builtin.set_fact:
     world_writable_dirs: '{{ world_writable_dirs | union(item.stdout_lines) | list }}'
   loop: '{{ result_found_dirs.results }}'
+  when:
+  - DISA_STIG_RHEL_09_232240 | bool
+  - dir_perms_world_writable_root_owned | bool
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - item is not skipped
   tags:
   - CCE-83903-5
   - DISA-STIG-RHEL-09-232240
@@ -5269,14 +5282,6 @@
   - medium_severity
   - no_reboot_needed
   - restrict_strategy
-  when:
-  - DISA_STIG_RHEL_09_232240 | bool
-  - dir_perms_world_writable_root_owned | bool
-  - low_complexity | bool
-  - medium_disruption | bool
-  - medium_severity | bool
-  - no_reboot_needed | bool
-  - restrict_strategy | bool
 
 - name: Ensure All World-Writable Directories Are Owned by root User - Ensure root Ownership on Local World Writable Directories
   ansible.builtin.file:
@@ -5517,6 +5522,15 @@
   ansible.builtin.set_fact:
     world_writable_dirs: '{{ world_writable_dirs | union(item.stdout_lines) | list }}'
   loop: '{{ result_found_dirs.results }}'
+  when:
+  - DISA_STIG_RHEL_09_232245 | bool
+  - dir_perms_world_writable_sticky_bits | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - result_found_dirs is not skipped and item is not skipped
   tags:
   - CCE-83895-3
   - DISA-STIG-RHEL-09-232245
@@ -5529,14 +5543,6 @@
   - medium_severity
   - no_reboot_needed
   - restrict_strategy
-  when:
-  - DISA_STIG_RHEL_09_232245 | bool
-  - dir_perms_world_writable_sticky_bits | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - medium_severity | bool
-  - no_reboot_needed | bool
-  - restrict_strategy | bool
 
 - name: Verify that All World-Writable Directories Have Sticky Bits Set - Ensure Sticky Bit is Set on Local World Writable
     Directories
