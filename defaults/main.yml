@@ -12,9 +12,10 @@ var_password_pam_minlen: '15'
 var_password_pam_ocredit: '-1'
 var_password_pam_retry: '3'
 var_password_pam_ucredit: '-1'
+var_password_hashing_algorithm_pam: sha512
 var_accounts_password_minlen_login_defs: '15'
 var_accounts_maximum_age_root: '365'
-var_password_pam_unix_rounds: '11'
+var_password_pam_unix_rounds: '65536'
 DISA_STIG_RHEL_09_214010: true
 DISA_STIG_RHEL_09_214015: true
 DISA_STIG_RHEL_09_214020: true
