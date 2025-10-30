@@ -61,7 +61,7 @@
   - unknown_strategy | bool
 
 - name: Configure dnf-automatic to Install Available Updates Automatically
-  ini_file:
+  community.general.ini_file:
     dest: /etc/dnf/automatic.conf
     section: commands
     option: apply_updates
@@ -109,7 +109,7 @@
   - unknown_strategy | bool
 
 - name: Configure dnf-automatic to Install Only Security Updates
-  ini_file:
+  community.general.ini_file:
     dest: /etc/dnf/automatic.conf
     section: commands
     option: upgrade_type
@@ -171,7 +171,7 @@
   - no_reboot_needed | bool
 
 - name: Ensure GPG check is globally activated
-  ini_file:
+  community.general.ini_file:
     dest: /etc/dnf/dnf.conf
     section: main
     option: gpgcheck
@@ -251,7 +251,7 @@
         dirname ~ "/" ~ pkg.stat.lnk_target }}'
     when: pkg.stat.lnk_target is defined
   - name: Ensure GPG check Enabled for Local Packages (dnf)
-    ini_file:
+    community.general.ini_file:
       dest: '{{ pkg_config_file_symlink |  default("/etc/dnf/dnf.conf") }}'
       section: main
       option: localpkg_gpgcheck
@@ -326,7 +326,7 @@
   - no_reboot_needed | bool
 
 - name: Set gpgcheck=1 for each dnf repo
-  ini_file:
+  community.general.ini_file:
     path: '{{ item[0] }}'
     section: '{{ item[1] }}'
     option: gpgcheck
@@ -764,7 +764,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83584-3
   - CJIS-5.6.2.1.1
@@ -793,7 +793,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   - result_authselect_present.stat.exists
   tags:
   - CCE-83584-3
@@ -858,7 +858,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   - result_authselect_present.stat.exists
   - result_authselect_available_features.stdout is search("with-pwhistory")
   tags:
@@ -1049,7 +1049,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   - '(result_authselect_available_features.stdout is defined and result_authselect_available_features.stdout is not search("with-pwhistory"))
     or result_authselect_available_features is not defined
 
@@ -1081,7 +1081,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83584-3
   - CJIS-5.6.2.1.1
@@ -1255,7 +1255,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   - result_pwhistory_conf_check.stat.exists
   tags:
   - CCE-83584-3
@@ -1463,7 +1463,7 @@
     ansible.builtin.lineinfile:
       path: '{{ pam_file_path }}'
       backrefs: true
-      regexp: ^(\s*password\s+{{ pam_module_control | regex_escape() }}\s+pam_pwhistory.so\s+.*)(remember)=[0-9a-zA-Z]+\s*(.*)
+      regexp: ^(\s*password\s+{{ pam_module_control | regex_escape() }}\s+pam_pwhistory.so\s+.*)(remember)=[0-9a-zA-Z]*\s*(.*)
       line: \1\2={{ var_password_pam_unix_remember }} \3
     register: result_pam_accounts_password_pam_unix_remember_edit
     when:
@@ -1482,7 +1482,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   - not result_pwhistory_conf_check.stat.exists
   tags:
   - CCE-83584-3
@@ -4124,7 +4124,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83566-0
   - DISA-STIG-RHEL-09-611070
@@ -4156,7 +4156,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83566-0
   - DISA-STIG-RHEL-09-611070
@@ -4188,7 +4188,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83566-0
   - DISA-STIG-RHEL-09-611070
@@ -4247,7 +4247,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83570-2
   - DISA-STIG-RHEL-09-611065
@@ -4279,7 +4279,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83570-2
   - DISA-STIG-RHEL-09-611065
@@ -4311,7 +4311,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83570-2
   - DISA-STIG-RHEL-09-611065
@@ -4367,7 +4367,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83563-7
   - DISA-STIG-RHEL-09-611130
@@ -4396,7 +4396,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83563-7
   - DISA-STIG-RHEL-09-611130
@@ -4425,7 +4425,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83563-7
   - DISA-STIG-RHEL-09-611130
@@ -4482,7 +4482,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83579-3
   - CJIS-5.6.2.1.1
@@ -4515,7 +4515,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83579-3
   - CJIS-5.6.2.1.1
@@ -4548,7 +4548,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83579-3
   - CJIS-5.6.2.1.1
@@ -4605,7 +4605,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83565-2
   - DISA-STIG-RHEL-09-611100
@@ -4634,7 +4634,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83565-2
   - DISA-STIG-RHEL-09-611100
@@ -4663,7 +4663,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83565-2
   - DISA-STIG-RHEL-09-611100
@@ -4714,7 +4714,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
@@ -4740,7 +4740,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
@@ -4914,7 +4914,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   - result_pam_file_present.stat.exists
   tags:
   - CCE-83569-4
@@ -4941,7 +4941,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
@@ -5115,7 +5115,7 @@
   - medium_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   - result_pam_file_present.stat.exists
   tags:
   - CCE-83569-4
@@ -5169,7 +5169,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83568-6
   - DISA-STIG-RHEL-09-611110
@@ -5199,7 +5199,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83568-6
   - DISA-STIG-RHEL-09-611110
@@ -5229,7 +5229,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
-  - '"pam" in ansible_facts.packages'
+  - '"libpwquality" in ansible_facts.packages'
   tags:
   - CCE-83568-6
   - DISA-STIG-RHEL-09-611110
@@ -6039,7 +6039,7 @@
     ansible.builtin.lineinfile:
       path: '{{ pam_file_path }}'
       backrefs: true
-      regexp: ^(\s*password\s+{{ pam_module_control | regex_escape() }}\s+pam_unix.so\s+.*)(rounds)=[0-9a-zA-Z]+\s*(.*)
+      regexp: ^(\s*password\s+{{ pam_module_control | regex_escape() }}\s+pam_unix.so\s+.*)(rounds)=[0-9a-zA-Z]*\s*(.*)
       line: \1\2={{ var_password_pam_unix_rounds }} \3
     register: result_pam_accounts_password_pam_unix_rounds_password_auth_edit
     when:
@@ -6320,7 +6320,7 @@
     ansible.builtin.lineinfile:
       path: '{{ pam_file_path }}'
       backrefs: true
-      regexp: ^(\s*password\s+{{ pam_module_control | regex_escape() }}\s+pam_unix.so\s+.*)(rounds)=[0-9a-zA-Z]+\s*(.*)
+      regexp: ^(\s*password\s+{{ pam_module_control | regex_escape() }}\s+pam_unix.so\s+.*)(rounds)=[0-9a-zA-Z]*\s*(.*)
       line: \1\2={{ var_password_pam_unix_rounds }} \3
     register: result_pam_accounts_password_pam_unix_rounds_system_auth_edit
     when:
@@ -6356,6 +6356,7 @@
   ansible.builtin.set_fact:
     excluded_fstypes:
     - afs
+    - autofs
     - ceph
     - cifs
     - smb3
@@ -6593,6 +6594,7 @@
   ansible.builtin.set_fact:
     excluded_fstypes:
     - afs
+    - autofs
     - ceph
     - cifs
     - smb3
@@ -6863,8 +6865,8 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
-- name: Ensure dhcp-server is removed
-  package:
+- name: 'Uninstall DHCP Server Package: Ensure dhcp-server is removed'
+  ansible.builtin.package:
     name: dhcp-server
     state: absent
   tags:
@@ -6912,8 +6914,8 @@
   - no_reboot_needed | bool
   - package_sendmail_removed | bool
 
-- name: Ensure sendmail is removed
-  package:
+- name: 'Uninstall Sendmail Package: Ensure sendmail is removed'
+  ansible.builtin.package:
     name: sendmail
     state: absent
   when:
@@ -6938,204 +6940,8 @@
   - no_reboot_needed
   - package_sendmail_removed
 
-- name: Gather the package facts
-  package_facts:
-    manager: auto
-  tags:
-  - CCE-84155-1
-  - NIST-800-53-CM-6(a)
-  - NIST-800-53-CM-7(a)
-  - NIST-800-53-CM-7(b)
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - low_complexity
-  - low_disruption
-  - low_severity
-  - no_reboot_needed
-  - package_xinetd_removed
-  when:
-  - disable_strategy | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - low_severity | bool
-  - no_reboot_needed | bool
-  - package_xinetd_removed | bool
-
-- name: Ensure xinetd is removed
-  package:
-    name: xinetd
-    state: absent
-  when:
-  - disable_strategy | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - low_severity | bool
-  - no_reboot_needed | bool
-  - package_xinetd_removed | bool
-  - '"kernel" in ansible_facts.packages'
-  tags:
-  - CCE-84155-1
-  - NIST-800-53-CM-6(a)
-  - NIST-800-53-CM-7(a)
-  - NIST-800-53-CM-7(b)
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - low_complexity
-  - low_disruption
-  - low_severity
-  - no_reboot_needed
-  - package_xinetd_removed
-
-- name: Ensure ypbind is removed
-  package:
-    name: ypbind
-    state: absent
-  tags:
-  - CCE-84151-0
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - low_complexity
-  - low_disruption
-  - no_reboot_needed
-  - package_ypbind_removed
-  - unknown_severity
-  when:
-  - disable_strategy | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - no_reboot_needed | bool
-  - package_ypbind_removed | bool
-  - unknown_severity | bool
-
-- name: Ensure ypserv is removed
-  package:
-    name: ypserv
-    state: absent
-  tags:
-  - CCE-84152-8
-  - DISA-STIG-RHEL-09-215030
-  - NIST-800-53-CM-6(a)
-  - NIST-800-53-CM-7(a)
-  - NIST-800-53-CM-7(b)
-  - NIST-800-53-IA-5(1)(c)
-  - PCI-DSS-Req-2.2.2
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - high_severity
-  - low_complexity
-  - low_disruption
-  - no_reboot_needed
-  - package_ypserv_removed
-  when:
-  - DISA_STIG_RHEL_09_215030 | bool
-  - disable_strategy | bool
-  - high_severity | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - no_reboot_needed | bool
-  - package_ypserv_removed | bool
-
-- name: Ensure rsh-server is removed
-  package:
-    name: rsh-server
-    state: absent
-  tags:
-  - CCE-84143-7
-  - DISA-STIG-RHEL-09-215035
-  - NIST-800-53-CM-6(a)
-  - NIST-800-53-CM-7(a)
-  - NIST-800-53-CM-7(b)
-  - NIST-800-53-IA-5(1)(c)
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - high_severity
-  - low_complexity
-  - low_disruption
-  - no_reboot_needed
-  - package_rsh-server_removed
-  when:
-  - DISA_STIG_RHEL_09_215035 | bool
-  - disable_strategy | bool
-  - high_severity | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - no_reboot_needed | bool
-  - package_rsh_server_removed | bool
-
-- name: Ensure rsh is removed
-  package:
-    name: rsh
-    state: absent
-  tags:
-  - CCE-84142-9
-  - NIST-800-171-3.1.13
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - low_complexity
-  - low_disruption
-  - no_reboot_needed
-  - package_rsh_removed
-  - unknown_severity
-  when:
-  - disable_strategy | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - no_reboot_needed | bool
-  - package_rsh_removed | bool
-  - unknown_severity | bool
-
-- name: Ensure talk-server is removed
-  package:
-    name: talk-server
-    state: absent
-  tags:
-  - CCE-84158-5
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - low_complexity
-  - low_disruption
-  - medium_severity
-  - no_reboot_needed
-  - package_talk-server_removed
-  when:
-  - disable_strategy | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - medium_severity | bool
-  - no_reboot_needed | bool
-  - package_talk_server_removed | bool
-
-- name: Ensure talk is removed
-  package:
-    name: talk
-    state: absent
-  tags:
-  - CCE-84157-7
-  - PCI-DSSv4-2.2
-  - PCI-DSSv4-2.2.4
-  - disable_strategy
-  - low_complexity
-  - low_disruption
-  - medium_severity
-  - no_reboot_needed
-  - package_talk_removed
-  when:
-  - disable_strategy | bool
-  - low_complexity | bool
-  - low_disruption | bool
-  - medium_severity | bool
-  - no_reboot_needed | bool
-  - package_talk_removed | bool
-
-- name: Ensure telnet-server is removed
-  package:
+- name: 'Uninstall telnet-server Package: Ensure telnet-server is removed'
+  ansible.builtin.package:
     name: telnet-server
     state: absent
   tags:
@@ -7162,8 +6968,8 @@
   - no_reboot_needed | bool
   - package_telnet_server_removed | bool
 
-- name: Ensure telnet is removed
-  package:
+- name: 'Remove telnet Clients: Ensure telnet is removed'
+  ansible.builtin.package:
     name: telnet
     state: absent
   tags:
@@ -7185,8 +6991,8 @@
   - no_reboot_needed | bool
   - package_telnet_removed | bool
 
-- name: Ensure tftp-server is removed
-  package:
+- name: 'Uninstall tftp-server Package: Ensure tftp-server is removed'
+  ansible.builtin.package:
     name: tftp-server
     state: absent
   tags:
@@ -7212,8 +7018,8 @@
   - no_reboot_needed | bool
   - package_tftp_server_removed | bool
 
-- name: Ensure tftp is removed
-  package:
+- name: 'Remove tftp Daemon: Ensure tftp is removed'
+  ansible.builtin.package:
     name: tftp
     state: absent
   tags:
