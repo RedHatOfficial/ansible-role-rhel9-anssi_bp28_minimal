@@ -1,7 +1,6 @@
-- name: Ensure dnf-automatic is installed
-  package:
-    name: dnf-automatic
-    state: present
+- name: Gather the package facts
+  package_facts:
+    manager: auto
   tags:
   - CCE-83454-9
   - enable_strategy
@@ -18,13 +17,31 @@
   - no_reboot_needed | bool
   - package_dnf_automatic_installed | bool
 
-- name: Configure dnf-automatic to Install Available Updates Automatically
-  ini_file:
-    dest: /etc/dnf/automatic.conf
-    section: commands
-    option: apply_updates
-    value: 'yes'
-    create: true
+- name: Ensure dnf-automatic is installed
+  package:
+    name: dnf-automatic
+    state: present
+  when:
+  - enable_strategy | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - package_dnf_automatic_installed | bool
+  - not ( "kernel" in ansible_facts.packages and "rpm-ostree" in ansible_facts.packages and "bootc" in ansible_facts.packages
+    and not "openshift-kubelet" in ansible_facts.packages )
+  tags:
+  - CCE-83454-9
+  - enable_strategy
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - package_dnf-automatic_installed
+
+- name: Gather the package facts
+  package_facts:
+    manager: auto
   tags:
   - CCE-83456-4
   - NIST-800-53-CM-6(a)
@@ -43,13 +60,36 @@
   - no_reboot_needed | bool
   - unknown_strategy | bool
 
-- name: Configure dnf-automatic to Install Only Security Updates
+- name: Configure dnf-automatic to Install Available Updates Automatically
   ini_file:
     dest: /etc/dnf/automatic.conf
     section: commands
-    option: upgrade_type
-    value: security
+    option: apply_updates
+    value: 'yes'
     create: true
+  when:
+  - low_complexity | bool
+  - medium_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - unknown_strategy | bool
+  - not ( "kernel" in ansible_facts.packages and "rpm-ostree" in ansible_facts.packages and "bootc" in ansible_facts.packages
+    and not "openshift-kubelet" in ansible_facts.packages )
+  tags:
+  - CCE-83456-4
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-SI-2(5)
+  - NIST-800-53-SI-2(c)
+  - dnf-automatic_apply_updates
+  - low_complexity
+  - medium_disruption
+  - medium_severity
+  - no_reboot_needed
+  - unknown_strategy
+
+- name: Gather the package facts
+  package_facts:
+    manager: auto
   tags:
   - CCE-83461-4
   - NIST-800-53-CM-6(a)
@@ -67,6 +107,33 @@
   - medium_disruption | bool
   - no_reboot_needed | bool
   - unknown_strategy | bool
+
+- name: Configure dnf-automatic to Install Only Security Updates
+  ini_file:
+    dest: /etc/dnf/automatic.conf
+    section: commands
+    option: upgrade_type
+    value: security
+    create: true
+  when:
+  - low_complexity | bool
+  - low_severity | bool
+  - medium_disruption | bool
+  - no_reboot_needed | bool
+  - unknown_strategy | bool
+  - not ( "kernel" in ansible_facts.packages and "rpm-ostree" in ansible_facts.packages and "bootc" in ansible_facts.packages
+    and not "openshift-kubelet" in ansible_facts.packages )
+  tags:
+  - CCE-83461-4
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-SI-2(5)
+  - NIST-800-53-SI-2(c)
+  - dnf-automatic_security_updates_only
+  - low_complexity
+  - low_severity
+  - medium_disruption
+  - no_reboot_needed
+  - unknown_strategy
 
 - name: Gather the package facts
   package_facts:
@@ -468,18 +535,9 @@
   - no_reboot_needed
   - restrict_strategy
 
-- name: Enable timer dnf-automatic
-  block:
-  - name: Gather the package facts
-    package_facts:
-      manager: auto
-  - name: Enable timer dnf-automatic
-    systemd:
-      name: dnf-automatic.timer
-      enabled: 'yes'
-      state: started
-    when:
-    - '"dnf-automatic" in ansible_facts.packages'
+- name: Gather the package facts
+  package_facts:
+    manager: auto
   tags:
   - CCE-83459-8
   - NIST-800-53-CM-6(a)
@@ -497,6 +555,38 @@
   - low_disruption | bool
   - medium_severity | bool
   - no_reboot_needed | bool
+
+- name: Enable timer dnf-automatic
+  block:
+  - name: Gather the package facts
+    package_facts:
+      manager: auto
+  - name: Enable timer dnf-automatic
+    systemd:
+      name: dnf-automatic.timer
+      enabled: 'yes'
+      state: started
+    when:
+    - '"dnf-automatic" in ansible_facts.packages'
+  when:
+  - enable_strategy | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - not ( "kernel" in ansible_facts.packages and "rpm-ostree" in ansible_facts.packages and "bootc" in ansible_facts.packages
+    and not "openshift-kubelet" in ansible_facts.packages )
+  tags:
+  - CCE-83459-8
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-SI-2(5)
+  - NIST-800-53-SI-2(c)
+  - enable_strategy
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - timer_dnf-automatic_enabled
 
 - name: Enable authselect - Check Current authselect Profile
   ansible.builtin.command:
@@ -857,7 +947,14 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Limit Password Reuse - Create an authselect custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Limit Password Reuse - Ensure authselect changes are applied
       ansible.builtin.command:
@@ -1086,7 +1183,14 @@
             cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
           when:
           - result_authselect_check_cmd is success
-          - authselect_current_profile is not match("custom/")
+          - authselect_current_profile is not match("^(custom/|local)")
+          - not result_authselect_custom_profile_present.stat.exists
+        - name: Limit Password Reuse - Create an authselect custom profile based on sssd profile
+          ansible.builtin.command:
+            cmd: authselect create-profile hardening -b sssd
+          when:
+          - result_authselect_check_cmd is success
+          - authselect_current_profile is match("local")
           - not result_authselect_custom_profile_present.stat.exists
         - name: Limit Password Reuse - Ensure authselect changes are applied
           ansible.builtin.command:
@@ -1239,7 +1343,14 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Limit Password Reuse - Create an authselect custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Limit Password Reuse - Ensure authselect changes are applied
       ansible.builtin.command:
@@ -1725,7 +1836,14 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Lock Accounts After Failed Password Attempts - Create an authselect custom profile based on sssd profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Lock Accounts After Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -1861,7 +1979,14 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Lock Accounts After Failed Password Attempts - Create an authselect custom profile based on sssd profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Lock Accounts After Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -2358,7 +2483,15 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Configure the root Account for Failed Password Attempts - Create an authselect custom profile based on sssd
+          profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Configure the root Account for Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -2499,7 +2632,15 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Configure the root Account for Failed Password Attempts - Create an authselect custom profile based on sssd
+          profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Configure the root Account for Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -2956,7 +3097,14 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Set Interval For Counting Failed Password Attempts - Create an authselect custom profile based on sssd profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Set Interval For Counting Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -3096,7 +3244,14 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Set Interval For Counting Failed Password Attempts - Create an authselect custom profile based on sssd profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Set Interval For Counting Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -3600,7 +3755,14 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Set Lockout Time for Failed Password Attempts - Create an authselect custom profile based on sssd profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Set Lockout Time for Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -3737,7 +3899,14 @@
           cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
         when:
         - result_authselect_check_cmd is success
-        - authselect_current_profile is not match("custom/")
+        - authselect_current_profile is not match("^(custom/|local)")
+        - not result_authselect_custom_profile_present.stat.exists
+      - name: Set Lockout Time for Failed Password Attempts - Create an authselect custom profile based on sssd profile
+        ansible.builtin.command:
+          cmd: authselect create-profile hardening -b sssd
+        when:
+        - result_authselect_check_cmd is success
+        - authselect_current_profile is match("local")
         - not result_authselect_custom_profile_present.stat.exists
       - name: Set Lockout Time for Failed Password Attempts - Ensure authselect changes are applied
         ansible.builtin.command:
@@ -3942,6 +4111,69 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
+- name: Ensure PAM Enforces Password Requirements - Minimum Digit Characters - Find pwquality.conf.d files
+  ansible.builtin.find:
+    paths: /etc/security/pwquality.conf.d/
+    patterns: '*.conf'
+  register: pwquality_conf_d_files
+  when:
+  - DISA_STIG_RHEL_09_611070 | bool
+  - accounts_password_pam_dcredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83566-0
+  - DISA-STIG-RHEL-09-611070
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - PCI-DSSv4-8.3
+  - PCI-DSSv4-8.3.6
+  - accounts_password_pam_dcredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Digit Characters - Ensure dcredit is not set in pwquality.conf.d
+  ansible.builtin.lineinfile:
+    path: '{{ item.path }}'
+    regexp: ^\s*\bdcredit\b.*
+    state: absent
+  with_items: '{{ pwquality_conf_d_files.files }}'
+  when:
+  - DISA_STIG_RHEL_09_611070 | bool
+  - accounts_password_pam_dcredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83566-0
+  - DISA-STIG-RHEL-09-611070
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - PCI-DSSv4-8.3
+  - PCI-DSSv4-8.3.6
+  - accounts_password_pam_dcredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
 - name: Ensure PAM Enforces Password Requirements - Minimum Digit Characters - Ensure PAM variable dcredit is set accordingly
   ansible.builtin.lineinfile:
     create: true
@@ -4002,6 +4234,69 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
+- name: Ensure PAM Enforces Password Requirements - Minimum Lowercase Characters - Find pwquality.conf.d files
+  ansible.builtin.find:
+    paths: /etc/security/pwquality.conf.d/
+    patterns: '*.conf'
+  register: pwquality_conf_d_files
+  when:
+  - DISA_STIG_RHEL_09_611065 | bool
+  - accounts_password_pam_lcredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83570-2
+  - DISA-STIG-RHEL-09-611065
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - PCI-DSSv4-8.3
+  - PCI-DSSv4-8.3.6
+  - accounts_password_pam_lcredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Lowercase Characters - Ensure lcredit is not set in pwquality.conf.d
+  ansible.builtin.lineinfile:
+    path: '{{ item.path }}'
+    regexp: ^\s*\blcredit\b.*
+    state: absent
+  with_items: '{{ pwquality_conf_d_files.files }}'
+  when:
+  - DISA_STIG_RHEL_09_611065 | bool
+  - accounts_password_pam_lcredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83570-2
+  - DISA-STIG-RHEL-09-611065
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - PCI-DSSv4-8.3
+  - PCI-DSSv4-8.3.6
+  - accounts_password_pam_lcredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
 - name: Ensure PAM Enforces Password Requirements - Minimum Lowercase Characters - Ensure PAM variable lcredit is set accordingly
   ansible.builtin.lineinfile:
     create: true
@@ -4058,6 +4353,63 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Different Categories - Find pwquality.conf.d files
+  ansible.builtin.find:
+    paths: /etc/security/pwquality.conf.d/
+    patterns: '*.conf'
+  register: pwquality_conf_d_files
+  when:
+  - DISA_STIG_RHEL_09_611130 | bool
+  - accounts_password_pam_minclass | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83563-7
+  - DISA-STIG-RHEL-09-611130
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - accounts_password_pam_minclass
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Different Categories - Ensure minclass is not set in pwquality.conf.d
+  ansible.builtin.lineinfile:
+    path: '{{ item.path }}'
+    regexp: ^\s*\bminclass\b.*
+    state: absent
+  with_items: '{{ pwquality_conf_d_files.files }}'
+  when:
+  - DISA_STIG_RHEL_09_611130 | bool
+  - accounts_password_pam_minclass | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83563-7
+  - DISA-STIG-RHEL-09-611130
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - accounts_password_pam_minclass
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
 
 - name: Ensure PAM Enforces Password Requirements - Minimum Different Categories - Ensure PAM variable minclass is set accordingly
   ansible.builtin.lineinfile:
@@ -4117,6 +4469,71 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
+- name: Ensure PAM Enforces Password Requirements - Minimum Length - Find pwquality.conf.d files
+  ansible.builtin.find:
+    paths: /etc/security/pwquality.conf.d/
+    patterns: '*.conf'
+  register: pwquality_conf_d_files
+  when:
+  - DISA_STIG_RHEL_09_611090 | bool
+  - accounts_password_pam_minlen | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83579-3
+  - CJIS-5.6.2.1.1
+  - DISA-STIG-RHEL-09-611090
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - PCI-DSSv4-8.3
+  - PCI-DSSv4-8.3.6
+  - accounts_password_pam_minlen
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Length - Ensure minlen is not set in pwquality.conf.d
+  ansible.builtin.lineinfile:
+    path: '{{ item.path }}'
+    regexp: ^\s*\bminlen\b.*
+    state: absent
+  with_items: '{{ pwquality_conf_d_files.files }}'
+  when:
+  - DISA_STIG_RHEL_09_611090 | bool
+  - accounts_password_pam_minlen | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83579-3
+  - CJIS-5.6.2.1.1
+  - DISA-STIG-RHEL-09-611090
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - PCI-DSSv4-8.3
+  - PCI-DSSv4-8.3.6
+  - accounts_password_pam_minlen
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
 - name: Ensure PAM Enforces Password Requirements - Minimum Length - Ensure PAM variable minlen is set accordingly
   ansible.builtin.lineinfile:
     create: true
@@ -4175,6 +4592,63 @@
   - no_reboot_needed | bool
   - restrict_strategy | bool
 
+- name: Ensure PAM Enforces Password Requirements - Minimum Special Characters - Find pwquality.conf.d files
+  ansible.builtin.find:
+    paths: /etc/security/pwquality.conf.d/
+    patterns: '*.conf'
+  register: pwquality_conf_d_files
+  when:
+  - DISA_STIG_RHEL_09_611100 | bool
+  - accounts_password_pam_ocredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83565-2
+  - DISA-STIG-RHEL-09-611100
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - accounts_password_pam_ocredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Special Characters - Ensure ocredit is not set in pwquality.conf.d
+  ansible.builtin.lineinfile:
+    path: '{{ item.path }}'
+    regexp: ^\s*\bocredit\b.*
+    state: absent
+  with_items: '{{ pwquality_conf_d_files.files }}'
+  when:
+  - DISA_STIG_RHEL_09_611100 | bool
+  - accounts_password_pam_ocredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83565-2
+  - DISA-STIG-RHEL-09-611100
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - accounts_password_pam_ocredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
 - name: Ensure PAM Enforces Password Requirements - Minimum Special Characters - Ensure PAM variable ocredit is set accordingly
   ansible.builtin.lineinfile:
     create: true
@@ -4210,7 +4684,6 @@
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
-  - DISA-STIG-RHEL-09-611010
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(4)
@@ -4221,7 +4694,6 @@
   - medium_severity
   - no_reboot_needed
   when:
-  - DISA_STIG_RHEL_09_611010 | bool
   - accounts_password_pam_retry | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4236,7 +4708,6 @@
     regexp: ^\s*retry
     line: retry = {{ var_password_pam_retry }}
   when:
-  - DISA_STIG_RHEL_09_611010 | bool
   - accounts_password_pam_retry | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4247,7 +4718,6 @@
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
-  - DISA-STIG-RHEL-09-611010
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(4)
@@ -4264,7 +4734,6 @@
     path: /etc/pam.d/password-auth
   register: result_pam_file_present
   when:
-  - DISA_STIG_RHEL_09_611010 | bool
   - accounts_password_pam_retry | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4275,7 +4744,6 @@
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
-  - DISA-STIG-RHEL-09-611010
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(4)
@@ -4368,7 +4836,15 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Ensure PAM Enforces Password Requirements - Authentication Retry Prompts Permitted Per-Session - Create an authselect
+        custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Ensure PAM Enforces Password Requirements - Authentication Retry Prompts Permitted Per-Session - Ensure authselect
         changes are applied
@@ -4432,7 +4908,6 @@
     - result_authselect_present.stat.exists
     - result_pam_option_removal is changed
   when:
-  - DISA_STIG_RHEL_09_611010 | bool
   - accounts_password_pam_retry | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4444,7 +4919,6 @@
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
-  - DISA-STIG-RHEL-09-611010
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(4)
@@ -4461,7 +4935,6 @@
     path: /etc/pam.d/system-auth
   register: result_pam_file_present
   when:
-  - DISA_STIG_RHEL_09_611010 | bool
   - accounts_password_pam_retry | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4472,7 +4945,6 @@
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
-  - DISA-STIG-RHEL-09-611010
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(4)
@@ -4565,7 +5037,15 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Ensure PAM Enforces Password Requirements - Authentication Retry Prompts Permitted Per-Session - Create an authselect
+        custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Ensure PAM Enforces Password Requirements - Authentication Retry Prompts Permitted Per-Session - Ensure authselect
         changes are applied
@@ -4629,7 +5109,6 @@
     - result_authselect_present.stat.exists
     - result_pam_option_removal is changed
   when:
-  - DISA_STIG_RHEL_09_611010 | bool
   - accounts_password_pam_retry | bool
   - configure_strategy | bool
   - low_complexity | bool
@@ -4641,7 +5120,6 @@
   tags:
   - CCE-83569-4
   - CJIS-5.5.3
-  - DISA-STIG-RHEL-09-611010
   - NIST-800-53-AC-7(a)
   - NIST-800-53-CM-6(a)
   - NIST-800-53-IA-5(4)
@@ -4677,6 +5155,65 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - restrict_strategy | bool
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Uppercase Characters - Find pwquality.conf.d files
+  ansible.builtin.find:
+    paths: /etc/security/pwquality.conf.d/
+    patterns: '*.conf'
+  register: pwquality_conf_d_files
+  when:
+  - DISA_STIG_RHEL_09_611110 | bool
+  - accounts_password_pam_ucredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83568-6
+  - DISA-STIG-RHEL-09-611110
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - accounts_password_pam_ucredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
+- name: Ensure PAM Enforces Password Requirements - Minimum Uppercase Characters - Ensure ucredit is not set in pwquality.conf.d
+  ansible.builtin.lineinfile:
+    path: '{{ item.path }}'
+    regexp: ^\s*\bucredit\b.*
+    state: absent
+  with_items: '{{ pwquality_conf_d_files.files }}'
+  when:
+  - DISA_STIG_RHEL_09_611110 | bool
+  - accounts_password_pam_ucredit | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - restrict_strategy | bool
+  - '"pam" in ansible_facts.packages'
+  tags:
+  - CCE-83568-6
+  - DISA-STIG-RHEL-09-611110
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-IA-5(1)(a)
+  - NIST-800-53-IA-5(4)
+  - NIST-800-53-IA-5(c)
+  - PCI-DSS-Req-8.2.3
+  - accounts_password_pam_ucredit
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
 
 - name: Ensure PAM Enforces Password Requirements - Minimum Uppercase Characters - Ensure PAM variable ucredit is set accordingly
   ansible.builtin.lineinfile:
@@ -4834,7 +5371,14 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Set PAM's Password Hashing Algorithm - Create an authselect custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Set PAM's Password Hashing Algorithm - Ensure authselect changes are applied
       ansible.builtin.command:
@@ -5078,7 +5622,14 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Set PAM's Password Hashing Algorithm - Create an authselect custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Set PAM's Password Hashing Algorithm - Ensure authselect changes are applied
       ansible.builtin.command:
@@ -5358,7 +5909,14 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Set number of Password Hashing Rounds - password-auth - Create an authselect custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Set number of Password Hashing Rounds - password-auth - Ensure authselect changes are applied
       ansible.builtin.command:
@@ -5632,7 +6190,14 @@
         cmd: authselect create-profile hardening -b {{ authselect_current_profile }}
       when:
       - result_authselect_check_cmd is success
-      - authselect_current_profile is not match("custom/")
+      - authselect_current_profile is not match("^(custom/|local)")
+      - not result_authselect_custom_profile_present.stat.exists
+    - name: Set number of Password Hashing Rounds - system-auth - Create an authselect custom profile based on sssd profile
+      ansible.builtin.command:
+        cmd: authselect create-profile hardening -b sssd
+      when:
+      - result_authselect_check_cmd is success
+      - authselect_current_profile is match("local")
       - not result_authselect_custom_profile_present.stat.exists
     - name: Set number of Password Hashing Rounds - system-auth - Ensure authselect changes are applied
       ansible.builtin.command:
@@ -6323,6 +6888,30 @@
   - no_reboot_needed | bool
   - package_dhcp_removed | bool
 
+- name: Gather the package facts
+  package_facts:
+    manager: auto
+  tags:
+  - CCE-90830-1
+  - DISA-STIG-RHEL-09-215020
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-CM-7(a)
+  - NIST-800-53-CM-7(b)
+  - disable_strategy
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - package_sendmail_removed
+  when:
+  - DISA_STIG_RHEL_09_215020 | bool
+  - disable_strategy | bool
+  - low_complexity | bool
+  - low_disruption | bool
+  - medium_severity | bool
+  - no_reboot_needed | bool
+  - package_sendmail_removed | bool
+
 - name: Ensure sendmail is removed
   package:
     name: sendmail
@@ -6335,7 +6924,7 @@
   - medium_severity | bool
   - no_reboot_needed | bool
   - package_sendmail_removed | bool
-  - ansible_virtualization_type not in ["docker", "lxc", "openvz", "podman", "container"]
+  - '"kernel" in ansible_facts.packages'
   tags:
   - CCE-90830-1
   - DISA-STIG-RHEL-09-215020
